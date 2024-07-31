@@ -1,4 +1,4 @@
-package com.team4522.lib.sim;
+package com.SCREAMLib.sim;
 
 public interface SimInterface {
     void update(double deltaTime);

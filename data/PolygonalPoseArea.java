@@ -1,4 +1,4 @@
-package com.team4522.lib.data;
+package com.SCREAMLib.data;
 
 import java.util.List;
 

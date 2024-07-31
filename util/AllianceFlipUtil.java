@@ -1,8 +1,8 @@
-package com.team4522.lib.util;
+package com.SCREAMLib.util;
 
 import java.util.function.BooleanSupplier;
 
-import com.team4522.lib.data.RectanglePoseArea;
+import com.SCREAMLib.data.RectanglePoseArea;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;

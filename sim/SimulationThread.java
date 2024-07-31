@@ -1,4 +1,4 @@
-package com.team4522.lib.sim;
+package com.SCREAMLib.sim;
 
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
@@ -7,11 +7,6 @@ import java.util.function.Function;
 
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.hardware.TalonFX;
-import com.team4522.lib.drivers.TalonFXSubsystem;
-import com.team4522.lib.drivers.TalonFXSubsystem.ControlType;
-import com.team4522.lib.pid.ScreamPIDConstants;
-import com.team4522.lib.pid.FeedforwardUtil.FFState;
-
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ElevatorFeedforward;
 import edu.wpi.first.math.controller.PIDController;

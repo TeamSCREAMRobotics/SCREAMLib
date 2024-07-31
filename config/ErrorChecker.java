@@ -1,4 +1,4 @@
-package com.team4522.lib.config;
+package com.SCREAMLib.config;
 
 import com.ctre.phoenix6.StatusCode;
 

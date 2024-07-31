@@ -1,4 +1,4 @@
-package com.team4522.lib.util;
+package com.SCREAMLib.util;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 

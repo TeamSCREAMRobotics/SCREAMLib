@@ -1,4 +1,4 @@
-package com.team4522.lib.data;
+package com.SCREAMLib.data;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Quaternion;

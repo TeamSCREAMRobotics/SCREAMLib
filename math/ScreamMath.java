@@ -1,6 +1,4 @@
-package com.team4522.lib.math;
-
-import com.team4522.lib.data.Length;
+package com.SCREAMLib.math;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;

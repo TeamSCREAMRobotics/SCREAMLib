@@ -1,4 +1,4 @@
-package com.team4522.lib.data;
+package com.SCREAMLib.data;
 
 public class Length {
     private double inches = 0.0;

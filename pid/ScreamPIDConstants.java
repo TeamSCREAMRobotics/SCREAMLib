@@ -1,4 +1,4 @@
-package com.team4522.lib.pid;
+package com.SCREAMLib.pid;
 
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.Slot1Configs;

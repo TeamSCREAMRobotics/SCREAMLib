@@ -1,10 +1,9 @@
 /*
  * Initially from https://github.com/Team364/BaseFalconSwerve
  */
+package com.SCREAMLib.math;
 
-package com.team4522.lib.math;
-
-import com.team4522.lib.data.Length;
+import com.SCREAMLib.data.Length;
 
 public class Conversions {
   /**

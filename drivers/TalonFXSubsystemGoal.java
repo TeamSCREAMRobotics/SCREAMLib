@@ -1,8 +1,8 @@
-package com.team4522.lib.drivers;
+package com.SCREAMLib.drivers;
 
 import java.util.function.DoubleSupplier;
 
-import com.team4522.lib.drivers.TalonFXSubsystem.ControlType;
+import com.SCREAMLib.drivers.TalonFXSubsystem.ControlType;
 
 public interface TalonFXSubsystemGoal {
     DoubleSupplier target();

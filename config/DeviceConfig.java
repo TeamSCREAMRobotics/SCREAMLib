@@ -1,5 +1,9 @@
-package com.team4522.lib.config;
+package com.SCREAMLib.config;
 
+import com.SCREAMLib.config.ErrorChecker.DeviceConfiguration;
+import com.SCREAMLib.pid.ScreamPIDConstants;
+import com.SCREAMLib.pid.ScreamPIDConstants.FeedforwardConstants;
+import com.SCREAMLib.pid.ScreamPIDConstants.MotionMagicConstants;
 import com.ctre.phoenix6.configs.AudioConfigs;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.ClosedLoopGeneralConfigs;
@@ -21,11 +25,6 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import com.team4522.lib.config.ErrorChecker.DeviceConfiguration;
-import com.team4522.lib.pid.ScreamPIDConstants;
-import com.team4522.lib.pid.ScreamPIDConstants.FeedforwardConstants;
-import com.team4522.lib.pid.ScreamPIDConstants.MotionMagicConstants;
-
 import edu.wpi.first.math.geometry.Rotation2d;
 
 public class DeviceConfig {

@@ -1,4 +1,4 @@
-package com.team4522.lib.sim;
+package com.SCREAMLib.sim;
 
 public record SimState(double position, double velocity, double supplyVoltage){
         /**

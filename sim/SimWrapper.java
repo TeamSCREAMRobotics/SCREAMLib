@@ -1,4 +1,4 @@
-package com.team4522.lib.sim;
+package com.SCREAMLib.sim;
 
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
