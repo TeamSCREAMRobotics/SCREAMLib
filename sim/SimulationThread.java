@@ -11,6 +11,7 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ElevatorFeedforward;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
@@ -37,13 +38,20 @@ public class SimulationThread {
 
     private Consumer<SimState> stateConsumer;
 
+    private boolean useSeparateThread;
+    private boolean limitVoltage;
+
     private double periodSec;
     
-    public SimulationThread(SimWrapper simWrapper, Consumer<SimState> stateConsumer, double periodSec){
+    public SimulationThread(SimWrapper simWrapper, Consumer<SimState> stateConsumer, boolean useSeparateThread, boolean limitVoltage, double periodSec){
         this.simInterface = simWrapper;
         this.stateConsumer = stateConsumer;
+        this.useSeparateThread = useSeparateThread;
+        this.limitVoltage = limitVoltage;
         this.periodSec = periodSec;
-        startSimThread();
+        if(useSeparateThread){
+            startSimThread();
+        }
     }
 
     public void setSimVoltage(DoubleSupplier simVoltage, boolean limitVoltage) {
@@ -52,6 +60,24 @@ public class SimulationThread {
 
     public void setSimVoltage(Function<Double, Double> simVoltage, boolean limitVoltage) {
         this.simVoltage = () -> limitVoltage ? MathUtil.clamp(simVoltage.apply(deltaTime), -12, 12) : simVoltage.apply(deltaTime);
+    }
+
+    public void update(){
+        if(useSeparateThread){
+            DriverStation.reportError("Do not call update if using separate thread!", true);
+            return;
+        }
+        final double currentTime = Timer.getFPGATimestamp();
+        deltaTime = currentTime - lastSimTime;
+        lastSimTime = currentTime;
+
+        simInterface.update(deltaTime);
+        simInterface.setInputVoltage(simVoltage.getAsDouble());
+        stateConsumer.accept(
+            new SimState(
+                simInterface.getPosition(), 
+                simInterface.getVelocity(), 
+                RobotController.getBatteryVoltage()));
     }
 
     public void startSimThread(){

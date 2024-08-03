@@ -72,6 +72,7 @@ public class TalonFXSubsystem extends SubsystemBase{
         public SimWrapper sim = null;
         public PIDController simController = null;
         public boolean limitSimVoltage = false;
+        public boolean useSeparateSimThread = false;
 
         public TalonFXConstants masterConstants = new TalonFXConstants();
         public TalonFXConstants[] slaveConstants = new TalonFXConstants[0];
@@ -145,10 +146,11 @@ public class TalonFXSubsystem extends SubsystemBase{
         slaveConfigs = new TalonFXConfiguration[constants.slaveConstants.length];
 
         goal = defaultGoal;
+        setDefaultCommand(applyGoal(goal));
 
         if(Robot.isSimulation() && constants.sim != null){
             masterSimState = master.getSimState();
-            simulationThread = new SimulationThread(constants.sim, this::setSimState, constants.simPeriodSec);
+            simulationThread = new SimulationThread(constants.sim, this::setSimState, constants.useSeparateSimThread, constants.limitSimVoltage, constants.simPeriodSec);
             simController = constants.simController;
         }
 
@@ -493,6 +495,13 @@ public class TalonFXSubsystem extends SubsystemBase{
             outputTelemetry();
         }
         Logger.recordOutput("RobotState/Subsystems/" + constants.name + "/Goal", goal.toString());
+    }
+
+    @Override
+    public void simulationPeriodic() {
+        if(!constants.useSeparateSimThread && constants.sim != null){
+            simulationThread.update();
+        }
     }
 
     public void outputTelemetry(){

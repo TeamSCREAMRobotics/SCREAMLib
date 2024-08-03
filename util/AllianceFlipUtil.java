@@ -18,7 +18,7 @@ public final class AllianceFlipUtil {
     public static final Translation2d FIELD_DIMENSIONS = new Translation2d(16.541, 8.211);
 
     public static BooleanSupplier shouldFlip(){
-        return () -> DriverStation.getAlliance().isPresent() && DriverStation.getAlliance().get() == Alliance.Red;
+        return () -> DriverStation.getAlliance().filter(value -> value == Alliance.Red).isPresent();
     }
 
     public static Rotation2d getForwardRotation(){
