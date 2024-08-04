@@ -32,8 +32,7 @@ public class Conversions {
    * @param gearRatio gear ratio between Falcon and mechanism
    * @return mechanism linear velocity in meters per second
    */
-  public static double rpsToMPS(
-      double falconRPS, double circumference, double gearRatio) {
+  public static double rpsToMPS(double falconRPS, double circumference, double gearRatio) {
     double wheelRPM = rpsToRPM(falconRPS, gearRatio);
     return (wheelRPM * circumference) / 60.0;
   }
@@ -49,15 +48,15 @@ public class Conversions {
     return rpmToRPS(wheelRPM, gearRatio);
   }
 
-  public static double rpmToFTS(double rpm, double circumference){
+  public static double rpmToFTS(double rpm, double circumference) {
     return (circumference * rpm) / 60;
   }
 
-  public static double linearDistanceToRotations(Length distance, Length circumference){
-        return distance.getInches() / circumference.getInches();
+  public static double linearDistanceToRotations(Length distance, Length circumference) {
+    return distance.getInches() / circumference.getInches();
   }
 
-  public static Length rotationsToLinearDistance(double rotations, Length circumference){
-      return circumference.times(rotations);
+  public static Length rotationsToLinearDistance(double rotations, Length circumference) {
+    return circumference.times(rotations);
   }
 }

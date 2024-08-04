@@ -7,9 +7,9 @@ public class RectanglePoseArea {
   private final Translation2d bottomLeft;
   private final Translation2d topRight;
 
-  // From FRC 6391 
+  // From FRC 6391
   // https://github.com/6391-Ursuline-Bearbotics/2024-6391-Crescendo/blob/master/src/main/java/frc/robot/Util/RectanglePoseArea.java
-  
+
   /**
    * Create a 2D rectangular area for pose calculations.
    *
@@ -46,6 +46,13 @@ public class RectanglePoseArea {
   }
 
   public boolean isPoseWithinArea(Pose2d pose) {
+    return pose.getX() >= bottomLeft.getX()
+        && pose.getX() <= topRight.getX()
+        && pose.getY() >= bottomLeft.getY()
+        && pose.getY() <= topRight.getY();
+  }
+
+  public boolean isPoseWithinArea(Translation2d pose) {
     return pose.getX() >= bottomLeft.getX()
         && pose.getX() <= topRight.getX()
         && pose.getY() >= bottomLeft.getY()
