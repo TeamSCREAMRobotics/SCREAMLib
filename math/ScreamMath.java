@@ -26,7 +26,7 @@ public class ScreamMath {
     return toLow + ((value - fromLow) * (toHigh - toLow)) / (fromHigh - fromLow);
   }
 
-  public static double getLinearSpeed(ChassisSpeeds speeds) {
+  public static double getLinearVelocity(ChassisSpeeds speeds) {
     return Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
   }
 

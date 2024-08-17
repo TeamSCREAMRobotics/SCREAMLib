@@ -1,6 +1,5 @@
 package com.SCREAMLib.util;
 
-import com.SCREAMLib.data.RectanglePoseArea;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -14,56 +13,33 @@ import java.util.function.BooleanSupplier;
 public final class AllianceFlipUtil {
 
   public static final Translation2d FIELD_DIMENSIONS = new Translation2d(16.541, 8.211);
+  public static final double FIELD_WIDTH = FIELD_DIMENSIONS.getY();
+  public static final double FIELD_LENGTH = FIELD_DIMENSIONS.getX();
 
   public static BooleanSupplier shouldFlip() {
     return () -> DriverStation.getAlliance().filter(value -> value == Alliance.Red).isPresent();
   }
 
   public static Rotation2d getForwardRotation() {
-    return Rotation2d(Rotation2d.fromDegrees(0), Rotation2d.fromDegrees(180));
+    return get(Rotation2d.fromDegrees(0), Rotation2d.fromDegrees(180));
   }
 
   public static int getDirectionCoefficient() {
-    return (int) Number(1, -1);
+    return (int) get(1, -1);
   }
 
-  public static Pose2d MirrorPoseForField2d(Pose2d pose) {
-    double x = pose.getX();
-    double y = FIELD_DIMENSIONS.getY() - pose.getY();
-    Rotation2d z = pose.getRotation().unaryMinus();
-    return new Pose2d(x, y, z);
-  }
-
-  public static Object Object(Object blueValue, Object redValue) {
+  public static <T> T get(T blueValue, T redValue) {
     return shouldFlip().getAsBoolean() ? redValue : blueValue;
   }
 
-  public static boolean Boolean(boolean blueValue, boolean redValue) {
-    return (boolean) Object(blueValue, redValue);
-  }
-
-  public static double Number(double blueValue, double redValue) {
-    return (double) Object(blueValue, redValue);
-  }
-
-  public static Rotation2d Rotation2d(Rotation2d blueValue, Rotation2d redValue) {
-    return (Rotation2d) Object(blueValue, redValue);
-  }
-
-  public static Translation2d Translation2d(Translation2d blueValue, Translation2d redValue) {
-    return (Translation2d) Object(blueValue, redValue);
-  }
-
-  public static Translation3d Translation3d(Translation3d blueValue, Translation3d redValue) {
-    return (Translation3d) Object(blueValue, redValue);
-  }
-
-  public static Pose2d Pose2d(Pose2d blueValue, Pose2d redValue) {
-    return (Pose2d) Object(blueValue, redValue);
+  public static <T> T get(T blueValue, T redValue, boolean inverse) {
+    return (inverse && !shouldFlip().getAsBoolean() || !inverse && shouldFlip().getAsBoolean())
+        ? redValue
+        : blueValue;
   }
 
   public static Rotation2d MirroredRotation2d(Rotation2d blueValue) {
-    return Rotation2d(blueValue, new Rotation2d(Math.PI).minus(blueValue));
+    return get(blueValue, new Rotation2d(Math.PI).minus(blueValue));
   }
 
   public static Rotation3d MirroredRotation3d(Rotation3d blueValue) {
@@ -74,7 +50,7 @@ public final class AllianceFlipUtil {
   }
 
   public static Translation2d MirroredTranslation2d(Translation2d blueValue) {
-    return Translation2d(
+    return get(
         blueValue, new Translation2d(FIELD_DIMENSIONS.getX() - blueValue.getX(), blueValue.getY()));
   }
 
@@ -85,25 +61,15 @@ public final class AllianceFlipUtil {
   }
 
   public static Translation3d MirroredTranslation3d(Translation3d blueValue) {
-    Translation2d temp = MirroredTranslation2d(blueValue.toTranslation2d());
-    return new Translation3d(temp.getX(), temp.getY(), blueValue.getZ());
+    return get(
+        blueValue,
+        new Translation3d(
+            FIELD_DIMENSIONS.getX() - blueValue.getX(), blueValue.getY(), blueValue.getZ()));
   }
 
   public static Pose3d MirroredPose3d(Pose3d blueValue) {
     return new Pose3d(
         MirroredTranslation3d(blueValue.getTranslation()),
         MirroredRotation3d(blueValue.getRotation()));
-  }
-
-  public static RectanglePoseArea PoseArea(RectanglePoseArea blueValue) {
-    return new RectanglePoseArea(
-        Translation2d(
-            blueValue.getBottomLeftPoint(),
-            new Translation2d(
-                blueValue.getMinX() + FIELD_DIMENSIONS.getX() / 2.0, blueValue.getMinY())),
-        Translation2d(
-            blueValue.getTopRightPoint(),
-            new Translation2d(
-                blueValue.getMaxX() + FIELD_DIMENSIONS.getX() / 2.0, blueValue.getMaxY())));
   }
 }

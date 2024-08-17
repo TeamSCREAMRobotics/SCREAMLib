@@ -29,28 +29,17 @@ import edu.wpi.first.math.geometry.Rotation2d;
 
 public class DeviceConfig {
 
-  public static void configureTalonFX(
-      String name, TalonFX fx, TalonFXConfiguration config, double updateFrequencyHz) {
+  public static void configureTalonFX(String name, TalonFX fx, TalonFXConfiguration config) {
     DeviceConfiguration deviceConfig =
         new DeviceConfiguration() {
           @Override
           public boolean configureSettings() {
             return ErrorChecker.hasConfiguredWithoutErrors(
-                fx.getConfigurator().apply(config),
-                fx.getConfigurator().setPosition(0.0),
-                fx.getVelocity().setUpdateFrequency(updateFrequencyHz),
-                fx.getAcceleration().setUpdateFrequency(50.0),
-                fx.getPosition().setUpdateFrequency(updateFrequencyHz),
-                fx.getSupplyVoltage().setUpdateFrequency(10.0),
-                fx.getStatorCurrent().setUpdateFrequency(10.0),
-                fx.getSupplyCurrent().setUpdateFrequency(10.0),
-                fx.getTorqueCurrent().setUpdateFrequency(50.0),
-                fx.getDeviceTemp().setUpdateFrequency(4.0),
-                fx.getControlMode().setUpdateFrequency(4.0));
+                fx.getConfigurator().apply(config), fx.getConfigurator().setPosition(0.0));
           }
         };
     ErrorChecker.configureDevice(
-        deviceConfig, name + " " + fx.getDeviceID() + " version " + fx.getVersion(), true);
+        deviceConfig, name + " " + fx.getDescription() + " version " + fx.getVersion(), true);
   }
 
   public static void configureCANcoder(

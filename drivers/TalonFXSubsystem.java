@@ -2,7 +2,6 @@ package com.SCREAMLib.drivers;
 
 import com.SCREAMLib.config.DeviceConfig;
 import com.SCREAMLib.pid.ScreamPIDConstants.MotionMagicConstants;
-import com.SCREAMLib.sim.SimState;
 import com.SCREAMLib.sim.SimWrapper;
 import com.SCREAMLib.sim.SimulationThread;
 import com.ctre.phoenix6.StatusSignal;
@@ -11,6 +10,7 @@ import com.ctre.phoenix6.configs.Slot1Configs;
 import com.ctre.phoenix6.configs.Slot2Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.ControlRequest;
+import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
@@ -22,16 +22,19 @@ import com.ctre.phoenix6.signals.ControlModeValue;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.ctre.phoenix6.sim.ChassisReference;
 import com.ctre.phoenix6.sim.TalonFXSimState;
+
+import dev.doglog.DogLog;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc2024.Robot;
 import java.util.function.DoubleSupplier;
 import java.util.function.UnaryOperator;
 import lombok.Getter;
-import org.littletonrobotics.junction.Logger;
 
 public class TalonFXSubsystem extends SubsystemBase {
 
@@ -45,6 +48,12 @@ public class TalonFXSubsystem extends SubsystemBase {
     public TalonFXConstants() {
       this(null, null);
     }
+  }
+
+  public interface TalonFXSubsystemGoal {
+    DoubleSupplier target();
+
+    ControlType controlType();
   }
 
   public static enum ControlType {
@@ -67,8 +76,8 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     public SimWrapper sim = null;
     public PIDController simController = null;
-    public boolean limitSimVoltage = false;
     public boolean useSeparateSimThread = false;
+    public boolean limitSimVoltage = true;
 
     public TalonFXConstants masterConstants = new TalonFXConstants();
     public TalonFXConstants[] slaveConstants = new TalonFXConstants[0];
@@ -114,7 +123,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   protected TalonFXSimState masterSimState;
   protected SimulationThread simulationThread;
   protected PIDController simController;
-  protected DoubleSupplier simFeedforward;
+  protected DoubleSupplier simFeedforwardSup;
 
   protected TalonFXConfiguration masterConfig;
   protected final TalonFXConfiguration[] slaveConfigs;
@@ -125,6 +134,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   protected final double forwardSoftLimitRotations;
   protected final double reverseSoftLimitRotations;
 
+  protected final DutyCycleOut dutyCycleRequest;
   protected final VoltageOut voltageRequest;
   protected final PositionVoltage positionRequest;
   protected final MotionMagicVoltage motionMagicPositionRequest;
@@ -143,28 +153,6 @@ public class TalonFXSubsystem extends SubsystemBase {
     slaveConfigs = new TalonFXConfiguration[constants.slaveConstants.length];
 
     goal = defaultGoal;
-    setDefaultCommand(applyGoal(goal));
-
-    if (Robot.isSimulation() && constants.sim != null) {
-      masterSimState = master.getSimState();
-      simulationThread =
-          new SimulationThread(
-              constants.sim,
-              this::setSimState,
-              constants.useSeparateSimThread,
-              constants.limitSimVoltage,
-              constants.simPeriodSec);
-      simController = constants.simController;
-    }
-
-    voltageRequest = new VoltageOut(0.0);
-    positionRequest = new PositionVoltage(0.0);
-    motionMagicPositionRequest = new MotionMagicVoltage(0.0);
-    velocityRequest = new VelocityVoltage(0.0);
-    motionMagicVelocityRequest = new MotionMagicVelocityVoltage(0.0);
-
-    masterPositionSignal = master.getRotorPosition();
-    masterVelocitySignal = master.getRotorVelocity();
 
     masterConfig = new TalonFXConfiguration();
 
@@ -220,14 +208,43 @@ public class TalonFXSubsystem extends SubsystemBase {
     }
 
     configMaster(masterConfig);
+
+    dutyCycleRequest = new DutyCycleOut(0.0);
+    voltageRequest = new VoltageOut(0.0);
+    positionRequest = new PositionVoltage(0.0);
+    motionMagicPositionRequest = new MotionMagicVoltage(0.0);
+    velocityRequest = new VelocityVoltage(0.0);
+    motionMagicVelocityRequest = new MotionMagicVelocityVoltage(0.0);
+
+    masterPositionSignal = master.getRotorPosition();
+    masterVelocitySignal = master.getRotorVelocity();
+
+    if (Robot.isSimulation() && constants.sim != null) {
+      masterSimState = master.getSimState();
+      masterSimState.Orientation =
+          constants.masterConstants.invert == InvertedValue.Clockwise_Positive
+              ? ChassisReference.Clockwise_Positive
+              : ChassisReference.CounterClockwise_Positive;
+      simulationThread =
+          new SimulationThread(
+              constants.sim,
+              this::setSimState,
+              constants.useSeparateSimThread,
+              constants.simPeriodSec,
+              constants.limitSimVoltage);
+      simController = constants.simController;
+    }
+
+    setDefaultCommand(applyGoal(goal));
+    System.out.println("[Init] " + constants.name + " initialization complete!");
   }
 
   public void configMaster(TalonFXConfiguration config) {
-    DeviceConfig.configureTalonFX(constants.name + " Master", master, config, 200);
+    DeviceConfig.configureTalonFX(constants.name + " Master", master, config);
   }
 
   public void configSlave(TalonFX slave, TalonFXConfiguration config) {
-    DeviceConfig.configureTalonFX(constants.name + " Slave", slave, config, 200);
+    DeviceConfig.configureTalonFX(constants.name + " Slave", slave, config);
   }
 
   public void setStatorCurrentLimit(double currentLimit, boolean enable) {
@@ -308,10 +325,6 @@ public class TalonFXSubsystem extends SubsystemBase {
     return Rotation2d.fromRotations(getPosition());
   }
 
-  public synchronized double getMPS(double wheelCircumference) {
-    return getVelocity() * wheelCircumference;
-  }
-
   public synchronized double getSimControllerOutput() {
     double output;
     switch (goal.controlType()) {
@@ -327,8 +340,8 @@ public class TalonFXSubsystem extends SubsystemBase {
         output = 0;
         break;
     }
-    if (simFeedforward != null) {
-      return output + simFeedforward.getAsDouble();
+    if (simFeedforwardSup != null) {
+      return output + simFeedforwardSup.getAsDouble();
     } else {
       return output;
     }
@@ -370,18 +383,22 @@ public class TalonFXSubsystem extends SubsystemBase {
                 case VOLTAGE:
                   setVoltage(goal.target().getAsDouble());
                   break;
+                case DUTY_CYCLE:
+                  setDutyCycle(goal.target().getAsDouble());
                 default:
                   stop();
                   break;
               }
             });
     if (Robot.isSimulation() && constants.sim != null) {
-      return command.beforeStarting(
-          () ->
-              simulationThread.setSimVoltage(
-                  goal.controlType() == ControlType.VOLTAGE
-                      ? goal.target()
-                      : () -> getSimControllerOutput()));
+      return command
+          .beforeStarting(
+              () ->
+                  simulationThread.setSimVoltage(
+                      goal.controlType() == ControlType.VOLTAGE
+                          ? goal.target()
+                          : () -> getSimControllerOutput()))
+          .finallyDo(() -> simController.reset());
     } else {
       return command;
     }
@@ -396,8 +413,19 @@ public class TalonFXSubsystem extends SubsystemBase {
     }
   }
 
+  public synchronized void setDutyCycle(double dutyCycle, double dutyCycleFeedforward) {
+    setMaster(dutyCycleRequest.withOutput(dutyCycle + dutyCycleFeedforward));
+  }
+
+  public synchronized void setDutyCycle(double dutyCycle) {
+    setDutyCycle(dutyCycle, 0);
+  }
+
   public synchronized void setVoltage(double volts, double voltageFeedForward) {
     inVelocityMode = false;
+    if (constants.sim != null) {
+      simulationThread.setSimVoltage(() -> volts);
+    }
     setMaster(voltageRequest.withOutput(volts + voltageFeedForward));
   }
 
@@ -467,12 +495,32 @@ public class TalonFXSubsystem extends SubsystemBase {
     }
   }
 
-  public synchronized void setSimState(SimState simState) {
-    ;
+  /**
+   * Sets the simulation state for the subsystem.
+   *
+   * <p>The units for each simulation type are as follows:
+   *
+   * @param position
+   *     <ul>
+   *       <li>DCMotorSim: Angular Position (Rotations)
+   *       <li>ElevatorSim: Linear Position (Meters)
+   *       <li>SingleJointedArmSim: Angular Position (Rotations)
+   *       <li>FlywheelSim: N/A
+   *     </ul>
+   *
+   * @param velocity
+   *     <ul>
+   *       <li>DCMotorSim: Angular Velocity (rot/s)
+   *       <li>ElevatorSim: Linear Velocity (m/s)
+   *       <li>SingleJointedArmSim: Angular Velocity (rot/s)
+   *       <li>FlywheelSim: Angular Velocity (rot/s)
+   *     </ul>
+   */
+  public synchronized void setSimState(double position, double velocity) {
     if (constants.codeEnabled) {
-      masterSimState.setRawRotorPosition(simState.position());
-      masterSimState.setSupplyVoltage(simState.supplyVoltage());
-      masterSimState.setRotorVelocity(simState.velocity());
+      masterSimState.setRawRotorPosition(position);
+      masterSimState.setSupplyVoltage(RobotController.getBatteryVoltage());
+      masterSimState.setRotorVelocity(velocity);
     }
   }
 
@@ -522,7 +570,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     if (constants.outputTelemetry) {
       outputTelemetry();
     }
-    Logger.recordOutput("RobotState/Subsystems/" + constants.name + "/Goal", goal.toString());
+    DogLog.log("RobotState/Subsystems/" + constants.name + "/Goal", goal.toString());
   }
 
   @Override
@@ -533,27 +581,30 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public void outputTelemetry() {
-    Logger.recordOutput("RobotState/Subsystems/" + constants.name + "/Position", getPosition());
-    Logger.recordOutput(
+    DogLog.log(
+        "RobotState/Subsystems/" + constants.name + "/AppliedVolts",
+        simulationThread.getSimVoltage().getAsDouble());
+    DogLog.log("RobotState/Subsystems/" + constants.name + "/Position", getPosition());
+    DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Velocity",
         new double[] {getVelocity(), getVelocity() * 60.0});
-    Logger.recordOutput(
+    DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Rotor Position", getRotorPosition());
-    Logger.recordOutput(
+    DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Rotor Velocity",
         new double[] {getRotorVelocity(), getRotorVelocity() * 60.0});
-    Logger.recordOutput(
+    DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Supply Voltage",
         master.getSupplyVoltage().getValueAsDouble());
-    Logger.recordOutput(
+    DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Supply Current",
         master.getSupplyCurrent().getValueAsDouble());
-    Logger.recordOutput("RobotState/Subsystems/" + constants.name + "/Setpoint", getSetpoint());
-    Logger.recordOutput("RobotState/Subsystems/" + constants.name + "/Error", getError());
-    Logger.recordOutput("RobotState/Subsystems/" + constants.name + "/At Goal?", atGoal());
-    Logger.recordOutput(
+    DogLog.log("RobotState/Subsystems/" + constants.name + "/Setpoint", getSetpoint());
+    DogLog.log("RobotState/Subsystems/" + constants.name + "/Error", getError());
+    DogLog.log("RobotState/Subsystems/" + constants.name + "/At Goal?", atGoal());
+    DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/In Velocity Mode", inVelocityMode);
-    Logger.recordOutput(
+    DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Control Mode", getControlMode().toString());
   }
 

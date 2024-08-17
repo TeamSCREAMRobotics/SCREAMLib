@@ -45,14 +45,14 @@ public class RectanglePoseArea {
     return topRight;
   }
 
-  public boolean isPoseWithinArea(Pose2d pose) {
+  public boolean contains(Pose2d pose) {
     return pose.getX() >= bottomLeft.getX()
         && pose.getX() <= topRight.getX()
         && pose.getY() >= bottomLeft.getY()
         && pose.getY() <= topRight.getY();
   }
 
-  public boolean isPoseWithinArea(Translation2d pose) {
+  public boolean contains(Translation2d pose) {
     return pose.getX() >= bottomLeft.getX()
         && pose.getX() <= topRight.getX()
         && pose.getY() >= bottomLeft.getY()

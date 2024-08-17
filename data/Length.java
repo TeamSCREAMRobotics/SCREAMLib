@@ -1,13 +1,13 @@
 package com.SCREAMLib.data;
 
 public class Length {
-  private double inches = 0.0;
+  private double inches;
 
   public Length() {
     this(0);
   }
 
-  private Length(double inches) {
+  public Length(double inches) {
     this.inches = inches;
   }
 
@@ -27,12 +27,12 @@ public class Length {
     return from(meters, 39.37);
   }
 
-  public static Length from(double value, double inchConversionFactor) {
-    return new Length(value * inchConversionFactor);
+  public static Length fromRotations(double rotations, Length circumference) {
+    return new Length(rotations * circumference.inches);
   }
 
-  public static Length fromRotations(double value, Length circumference) {
-    return new Length(value * circumference.inches);
+  public static Length from(double value, double inchConversionFactor) {
+    return new Length(value * inchConversionFactor);
   }
 
   public Length plus(Length other) {

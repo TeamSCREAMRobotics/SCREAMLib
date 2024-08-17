@@ -39,11 +39,16 @@ public class DataConversions {
     int index = 0;
 
     for (Translation3d translation : translations) {
-      double[] arr = translation3dToArray(translation);
+      combinedArr[index] = translation.getX();
+      combinedArr[index + 1] = translation.getY();
+      combinedArr[index + 2] = translation.getZ();
+
+      index += 7;
+      /* double[] arr = translation3dToArray(translation);
 
       System.arraycopy(arr, 0, combinedArr, index, arr.length);
 
-      index += arr.length;
+      index += arr.length; */
     }
 
     return combinedArr;
@@ -54,12 +59,10 @@ public class DataConversions {
     int index = 0;
 
     for (Translation2d translation : translations) {
-      double[] arr =
-          translation3dToArray(new Translation3d(translation.getX(), translation.getY(), 0.0));
+      combinedArr[index] = translation.getX();
+      combinedArr[index + 1] = translation.getY();
 
-      System.arraycopy(arr, 0, combinedArr, index, arr.length);
-
-      index += arr.length;
+      index += 7;
     }
 
     return combinedArr;
@@ -70,18 +73,23 @@ public class DataConversions {
     int index = 0;
 
     for (Translation2d translation : translations) {
-      double[] arr =
-          translation3dToArray(new Translation3d(translation.getX(), translation.getY(), z));
+      combinedArr[index] = translation.getX();
+      combinedArr[index + 1] = translation.getY();
+      combinedArr[index + 2] = z;
 
-      System.arraycopy(arr, 0, combinedArr, index, arr.length);
-
-      index += arr.length;
+      index += 7;
     }
 
     return combinedArr;
   }
 
-  public static Translation2d chassisSpeedsToTranslation(ChassisSpeeds speeds) {
-    return new Translation2d(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
+  public static double[] chassisSpeedsToArray(ChassisSpeeds speeds) {
+    return new double[] {
+      speeds.vxMetersPerSecond, speeds.vyMetersPerSecond, speeds.omegaRadiansPerSecond
+    };
+  }
+
+  public static Translation2d projectTo2d(Translation3d translation) {
+    return new Translation2d(translation.getX(), translation.getZ());
   }
 }

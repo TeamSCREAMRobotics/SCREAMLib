@@ -3,11 +3,10 @@ package com.SCREAMLib.sim;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Notifier;
-import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.DoubleSupplier;
-import java.util.function.Function;
+import lombok.Getter;
 
 public class SimulationThread {
 
@@ -17,25 +16,24 @@ public class SimulationThread {
 
   private double deltaTime;
 
-  private DoubleSupplier simVoltage = () -> 0.0;
+  @Getter private DoubleSupplier simVoltage = () -> 0.0;
 
-  private Consumer<SimState> stateConsumer;
+  private BiConsumer<Double, Double> stateConsumer;
 
   private boolean useSeparateThread;
-  private boolean limitVoltage;
 
   private double periodSec;
+  private boolean limitVoltage;
 
   public SimulationThread(
       SimWrapper simWrapper,
-      Consumer<SimState> stateConsumer,
+      BiConsumer<Double, Double> stateConsumer,
       boolean useSeparateThread,
-      boolean limitVoltage,
-      double periodSec) {
+      double periodSec,
+      boolean limitVoltage) {
     this.simInterface = simWrapper;
     this.stateConsumer = stateConsumer;
     this.useSeparateThread = useSeparateThread;
-    this.limitVoltage = limitVoltage;
     this.periodSec = periodSec;
     if (useSeparateThread) {
       startSimThread();
@@ -44,15 +42,10 @@ public class SimulationThread {
 
   public void setSimVoltage(DoubleSupplier simVoltage) {
     this.simVoltage =
-        limitVoltage ? () -> MathUtil.clamp(simVoltage.getAsDouble(), -12, 12) : simVoltage;
-  }
-
-  public void setSimVoltage(Function<Double, Double> simVoltage) {
-    this.simVoltage =
         () ->
             limitVoltage
-                ? MathUtil.clamp(simVoltage.apply(deltaTime), -12, 12)
-                : simVoltage.apply(deltaTime);
+                ? MathUtil.clamp(simVoltage.getAsDouble(), -12, 12)
+                : simVoltage.getAsDouble();
   }
 
   public void update() {
@@ -66,11 +59,7 @@ public class SimulationThread {
 
     simInterface.update(deltaTime);
     simInterface.setInputVoltage(simVoltage.getAsDouble());
-    stateConsumer.accept(
-        new SimState(
-            simInterface.getPosition(),
-            simInterface.getVelocity(),
-            RobotController.getBatteryVoltage()));
+    stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
   }
 
   public void startSimThread() {
@@ -83,11 +72,7 @@ public class SimulationThread {
 
               simInterface.update(deltaTime);
               simInterface.setInputVoltage(simVoltage.getAsDouble());
-              stateConsumer.accept(
-                  new SimState(
-                      simInterface.getPosition(),
-                      simInterface.getVelocity(),
-                      RobotController.getBatteryVoltage()));
+              stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
             });
     simNotifier.startPeriodic(periodSec);
   }

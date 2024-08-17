@@ -36,15 +36,13 @@ public class ErrorChecker {
   public static void configureDevice(
       DeviceConfiguration config, String name, double bootAllowanceSeconds, boolean printInfo) {
     boolean goodConfiguration = false;
-    Timer timer = new Timer();
-    timer.reset();
-    timer.start();
+    double startTime = Timer.getFPGATimestamp();
 
     int tries = 0;
     while (!goodConfiguration) {
       tries++;
 
-      if (timer.get() > bootAllowanceSeconds) {
+      if (Timer.getFPGATimestamp() - startTime > bootAllowanceSeconds) {
         if (printInfo)
           DriverStation.reportError(
               "failed configuration for " + name + " initialization, took " + tries + " tries.",

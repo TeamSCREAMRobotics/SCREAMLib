@@ -1,5 +1,6 @@
-package com.SCREAMLib.util;
+package com.SCREAMLib.drivers;
 
+import com.SCREAMLib.math.ScreamMath;
 import com.SCREAMLib.pid.ScreamPIDConstants;
 import com.ctre.phoenix6.mechanisms.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.mechanisms.swerve.SwerveModule.SteerRequestType;
@@ -10,13 +11,14 @@ import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest.FieldCentricFacingAngle
 import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest.RobotCentric;
 import com.ctre.phoenix6.mechanisms.swerve.utility.PhoenixPIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import frc2024.subsystems.swerve.generated.TunerConstants;
 import java.util.function.Supplier;
 
-public class PhoenixSwerveUtil {
+public class PhoenixSwerveHelper {
 
   private final PhoenixPIDController headingController;
 
@@ -25,14 +27,12 @@ public class PhoenixSwerveUtil {
   private final RobotCentric robotCentric;
   private final ApplyChassisSpeeds applyChassisSpeeds;
 
-  private final Supplier<Rotation2d> headingSupplier;
+  private final Supplier<Pose2d> poseSup;
   private final double MAX_SPEED = TunerConstants.SPEED_12V_MPS;
   private final double MAX_ANGULAR_SPEED;
 
-  public PhoenixSwerveUtil(
-      Supplier<Rotation2d> headingSupplier,
-      double maxAngularSpeed,
-      ScreamPIDConstants snapConstants) {
+  public PhoenixSwerveHelper(
+      Supplier<Pose2d> poseSup, double maxAngularSpeed, ScreamPIDConstants snapConstants) {
     fieldCentricFacingAngle =
         new FieldCentricFacingAngle()
             .withDeadband(MAX_SPEED * 0.05)
@@ -57,7 +57,7 @@ public class PhoenixSwerveUtil {
     fieldCentricFacingAngle.HeadingController = headingController;
     fieldCentricFacingAngle.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
 
-    this.headingSupplier = headingSupplier;
+    this.poseSup = poseSup;
     this.MAX_ANGULAR_SPEED = maxAngularSpeed;
   }
 
@@ -73,7 +73,7 @@ public class PhoenixSwerveUtil {
       Translation2d translation, Rotation2d targetAngle, ProfiledPIDController profile) {
     return getFieldCentric(
         translation,
-        profile.calculate(headingSupplier.get().getRadians(), targetAngle.getRadians()));
+        profile.calculate(poseSup.get().getRotation().getRadians(), targetAngle.getRadians()));
   }
 
   public SwerveRequest getFacingAngleCOR(
@@ -93,8 +93,23 @@ public class PhoenixSwerveUtil {
       Translation2d centerOfRotation) {
     return getFieldCentricCOR(
         translation,
-        profile.calculate(headingSupplier.get().getRadians(), targetAngle.getRadians()),
+        profile.calculate(poseSup.get().getRotation().getRadians(), targetAngle.getRadians()),
         centerOfRotation);
+  }
+
+  public SwerveRequest getPointingAt(Translation2d translation, Translation2d targetPoint) {
+    return getFacingAngle(
+        translation, ScreamMath.calculateAngleToPoint(poseSup.get().getTranslation(), targetPoint));
+  }
+
+  public SwerveRequest getPointingAt(
+      Translation2d translation, Translation2d targetPoint, boolean facingBackwards) {
+    return getFacingAngle(
+        translation,
+        facingBackwards
+            ? ScreamMath.calculateAngleToPoint(poseSup.get().getTranslation(), targetPoint)
+                .minus(new Rotation2d(Math.PI))
+            : ScreamMath.calculateAngleToPoint(poseSup.get().getTranslation(), targetPoint));
   }
 
   public SwerveRequest getFieldCentric(Translation2d translation, double angularVelocity) {
