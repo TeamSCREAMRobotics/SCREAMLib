@@ -1,5 +1,6 @@
 package com.SCREAMLib.sim;
 
+import com.SCREAMLib.data.DataHelpers.SimConstants;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Notifier;
@@ -26,14 +27,11 @@ public class SimulationThread {
   private boolean limitVoltage;
 
   public SimulationThread(
-      SimWrapper simWrapper,
-      BiConsumer<Double, Double> stateConsumer,
-      boolean useSeparateThread,
-      double periodSec,
-      boolean limitVoltage) {
-    this.simInterface = simWrapper;
+      SimConstants constants, BiConsumer<Double, Double> stateConsumer, double periodSec) {
+    this.simInterface = constants.sim();
+    this.useSeparateThread = constants.useSeparateThread();
+    this.limitVoltage = constants.limitVoltage();
     this.stateConsumer = stateConsumer;
-    this.useSeparateThread = useSeparateThread;
     this.periodSec = periodSec;
     if (useSeparateThread) {
       startSimThread();

@@ -1,6 +1,7 @@
 package com.SCREAMLib.drivers;
 
 import com.SCREAMLib.config.DeviceConfig;
+import com.SCREAMLib.data.DataHelpers.SimConstants;
 import com.SCREAMLib.pid.ScreamPIDConstants.MotionMagicConstants;
 import com.SCREAMLib.sim.SimWrapper;
 import com.SCREAMLib.sim.SimulationThread;
@@ -24,7 +25,6 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.sim.ChassisReference;
 import com.ctre.phoenix6.sim.TalonFXSimState;
-
 import dev.doglog.DogLog;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -74,10 +74,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     public double loopPeriodSec = 0.02;
     public double simPeriodSec = 0.001;
 
-    public SimWrapper sim = null;
-    public PIDController simController = null;
-    public boolean useSeparateSimThread = false;
-    public boolean limitSimVoltage = true;
+    public SimConstants simConstants = null;
 
     public TalonFXConstants masterConstants = new TalonFXConstants();
     public TalonFXConstants[] slaveConstants = new TalonFXConstants[0];
@@ -121,6 +118,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   @Getter protected TalonFXSubsystemGoal goal;
 
   protected TalonFXSimState masterSimState;
+  protected SimWrapper sim;
   protected SimulationThread simulationThread;
   protected PIDController simController;
   protected DoubleSupplier simFeedforwardSup;
@@ -219,20 +217,16 @@ public class TalonFXSubsystem extends SubsystemBase {
     masterPositionSignal = master.getRotorPosition();
     masterVelocitySignal = master.getRotorVelocity();
 
-    if (Robot.isSimulation() && constants.sim != null) {
+    if (Robot.isSimulation() && constants.simConstants != null) {
       masterSimState = master.getSimState();
+      sim = constants.simConstants.sim();
       masterSimState.Orientation =
           constants.masterConstants.invert == InvertedValue.Clockwise_Positive
               ? ChassisReference.Clockwise_Positive
               : ChassisReference.CounterClockwise_Positive;
       simulationThread =
-          new SimulationThread(
-              constants.sim,
-              this::setSimState,
-              constants.useSeparateSimThread,
-              constants.simPeriodSec,
-              constants.limitSimVoltage);
-      simController = constants.simController;
+          new SimulationThread(constants.simConstants, this::setSimState, constants.simPeriodSec);
+      simController = constants.simConstants.simController();
     }
 
     setDefaultCommand(applyGoal(goal));
@@ -390,7 +384,7 @@ public class TalonFXSubsystem extends SubsystemBase {
                   break;
               }
             });
-    if (Robot.isSimulation() && constants.sim != null) {
+    if (Robot.isSimulation() && sim != null) {
       return command
           .beforeStarting(
               () ->
@@ -405,7 +399,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized Command runVoltage(DoubleSupplier voltage) {
-    if (Robot.isSimulation() && constants.sim != null) {
+    if (Robot.isSimulation() && sim != null) {
       return run(() -> setVoltage(voltage.getAsDouble()))
           .beforeStarting(() -> simulationThread.setSimVoltage(voltage));
     } else {
@@ -423,7 +417,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   public synchronized void setVoltage(double volts, double voltageFeedForward) {
     inVelocityMode = false;
-    if (constants.sim != null) {
+    if (sim != null) {
       simulationThread.setSimVoltage(() -> volts);
     }
     setMaster(voltageRequest.withOutput(volts + voltageFeedForward));
@@ -575,7 +569,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   @Override
   public void simulationPeriodic() {
-    if (!constants.useSeparateSimThread && constants.sim != null) {
+    if (constants.simConstants != null && !constants.simConstants.useSeparateThread()) {
       simulationThread.update();
     }
   }
@@ -588,8 +582,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Velocity",
         new double[] {getVelocity(), getVelocity() * 60.0});
-    DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/Rotor Position", getRotorPosition());
+    DogLog.log("RobotState/Subsystems/" + constants.name + "/Rotor Position", getRotorPosition());
     DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Rotor Velocity",
         new double[] {getRotorVelocity(), getRotorVelocity() * 60.0});
@@ -602,8 +595,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     DogLog.log("RobotState/Subsystems/" + constants.name + "/Setpoint", getSetpoint());
     DogLog.log("RobotState/Subsystems/" + constants.name + "/Error", getError());
     DogLog.log("RobotState/Subsystems/" + constants.name + "/At Goal?", atGoal());
-    DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/In Velocity Mode", inVelocityMode);
+    DogLog.log("RobotState/Subsystems/" + constants.name + "/In Velocity Mode", inVelocityMode);
     DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Control Mode", getControlMode().toString());
   }
