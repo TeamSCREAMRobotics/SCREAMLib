@@ -27,14 +27,14 @@ public class SimulationThread {
   private boolean limitVoltage;
 
   public SimulationThread(
-      SimConstants constants, BiConsumer<Double, Double> stateConsumer, double periodSec) {
+      SimConstants constants, BiConsumer<Double, Double> stateConsumer, double periodSec, String name) {
     this.simInterface = constants.sim();
     this.useSeparateThread = constants.useSeparateThread();
     this.limitVoltage = constants.limitVoltage();
     this.stateConsumer = stateConsumer;
     this.periodSec = periodSec;
     if (useSeparateThread) {
-      startSimThread();
+      startSimThread(name);
     }
   }
 
@@ -60,7 +60,7 @@ public class SimulationThread {
     stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
   }
 
-  public void startSimThread() {
+  public void startSimThread(String name) {
     simNotifier =
         new Notifier(
             () -> {
@@ -72,6 +72,7 @@ public class SimulationThread {
               simInterface.setInputVoltage(simVoltage.getAsDouble());
               stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
             });
+    simNotifier.setName(name);
     simNotifier.startPeriodic(periodSec);
   }
 }

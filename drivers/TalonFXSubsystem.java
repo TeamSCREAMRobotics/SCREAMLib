@@ -214,6 +214,9 @@ public class TalonFXSubsystem extends SubsystemBase {
     velocityRequest = new VelocityVoltage(0.0);
     motionMagicVelocityRequest = new MotionMagicVelocityVoltage(0.0);
 
+    master.getRotorPosition().setUpdateFrequency(50.0);
+    master.getRotorVelocity().setUpdateFrequency(50.0);
+
     masterPositionSignal = master.getRotorPosition();
     masterVelocitySignal = master.getRotorVelocity();
 
@@ -225,7 +228,11 @@ public class TalonFXSubsystem extends SubsystemBase {
               ? ChassisReference.Clockwise_Positive
               : ChassisReference.CounterClockwise_Positive;
       simulationThread =
-          new SimulationThread(constants.simConstants, this::setSimState, constants.simPeriodSec);
+          new SimulationThread(
+              constants.simConstants,
+              this::setSimState,
+              constants.simPeriodSec,
+              constants.name + " Sim Thread");
       simController = constants.simConstants.simController();
     }
 
@@ -292,7 +299,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized double getPosition() {
-    return masterPositionSignal.asSupplier().get() / constants.rotorToSensorRatio;
+    return masterPositionSignal.asSupplier().get() / constants.sensorToMechRatio;
   }
 
   public synchronized double getRotorVelocity() {
@@ -300,7 +307,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized double getVelocity() {
-    return masterVelocitySignal.asSupplier().get() / constants.rotorToSensorRatio;
+    return masterVelocitySignal.asSupplier().get() / constants.sensorToMechRatio;
   }
 
   public synchronized TalonFXSimState getSimState() {
@@ -379,6 +386,7 @@ public class TalonFXSubsystem extends SubsystemBase {
                   break;
                 case DUTY_CYCLE:
                   setDutyCycle(goal.target().getAsDouble());
+                  break;
                 default:
                   stop();
                   break;
@@ -391,7 +399,9 @@ public class TalonFXSubsystem extends SubsystemBase {
                   simulationThread.setSimVoltage(
                       goal.controlType() == ControlType.VOLTAGE
                           ? goal.target()
-                          : () -> getSimControllerOutput()))
+                          : goal.controlType() == ControlType.DUTY_CYCLE
+                              ? () -> goal.target().getAsDouble() * 12.0
+                              : () -> getSimControllerOutput()))
           .finallyDo(() -> simController.reset());
     } else {
       return command;
@@ -575,9 +585,10 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public void outputTelemetry() {
-    DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/AppliedVolts",
-        simulationThread.getSimVoltage().getAsDouble());
+    /* DogLog.log(
+    "RobotState/Subsystems/" + constants.name + "/AppliedVolts",
+    simulationThread.getSimVoltage().getAsDouble()); */
+    // TODO simulation check
     DogLog.log("RobotState/Subsystems/" + constants.name + "/Position", getPosition());
     DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Velocity",
