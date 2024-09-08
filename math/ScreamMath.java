@@ -1,5 +1,6 @@
 package com.SCREAMLib.math;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
@@ -45,5 +46,10 @@ public class ScreamMath {
     double targetX = target.getX() - current.getX();
     double targetY = target.getY() - current.getY();
     return Rotation2d.fromRadians(Math.atan2(targetY, targetX));
+  }
+
+  public static Rotation2d clamp(Rotation2d rotation, Rotation2d high, Rotation2d low) {
+    return Rotation2d.fromRadians(
+        MathUtil.clamp(rotation.getRadians(), low.getRadians(), high.getRadians()));
   }
 }

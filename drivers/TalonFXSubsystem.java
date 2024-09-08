@@ -6,6 +6,7 @@ import com.SCREAMLib.pid.ScreamPIDConstants.MotionMagicConstants;
 import com.SCREAMLib.sim.SimWrapper;
 import com.SCREAMLib.sim.SimulationThread;
 import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.Slot1Configs;
 import com.ctre.phoenix6.configs.Slot2Configs;
@@ -31,7 +32,6 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc2024.Robot;
 import java.util.function.DoubleSupplier;
 import java.util.function.UnaryOperator;
 import lombok.Getter;
@@ -129,6 +129,9 @@ public class TalonFXSubsystem extends SubsystemBase {
   protected final StatusSignal<Double> masterPositionSignal;
   protected final StatusSignal<Double> masterVelocitySignal;
 
+  protected final StatusSignal<Double> masterRotorPositionSignal;
+  protected final StatusSignal<Double> masterRotorVelocitySignal;
+
   protected final double forwardSoftLimitRotations;
   protected final double reverseSoftLimitRotations;
 
@@ -217,10 +220,12 @@ public class TalonFXSubsystem extends SubsystemBase {
     master.getRotorPosition().setUpdateFrequency(50.0);
     master.getRotorVelocity().setUpdateFrequency(50.0);
 
-    masterPositionSignal = master.getRotorPosition();
-    masterVelocitySignal = master.getRotorVelocity();
+    masterPositionSignal = master.getPosition();
+    masterVelocitySignal = master.getVelocity();
+    masterRotorPositionSignal = master.getRotorPosition();
+    masterRotorVelocitySignal = master.getRotorVelocity();
 
-    if (Robot.isSimulation() && constants.simConstants != null) {
+    if (shouldSimulate()) {
       masterSimState = master.getSimState();
       sim = constants.simConstants.sim();
       masterSimState.Orientation =
@@ -290,24 +295,28 @@ public class TalonFXSubsystem extends SubsystemBase {
     configMaster(masterConfig);
   }
 
+  public boolean shouldSimulate() {
+    return Utils.isSimulation() && constants.simConstants != null;
+  }
+
   public synchronized ControlModeValue getControlMode() {
     return master.getControlMode().asSupplier().get();
   }
 
   public synchronized double getRotorPosition() {
-    return masterPositionSignal.asSupplier().get();
+    return masterRotorPositionSignal.asSupplier().get();
   }
 
   public synchronized double getPosition() {
-    return masterPositionSignal.asSupplier().get() / constants.sensorToMechRatio;
+    return masterPositionSignal.asSupplier().get();
   }
 
   public synchronized double getRotorVelocity() {
-    return masterVelocitySignal.asSupplier().get();
+    return masterRotorVelocitySignal.asSupplier().get();
   }
 
   public synchronized double getVelocity() {
-    return masterVelocitySignal.asSupplier().get() / constants.sensorToMechRatio;
+    return masterVelocitySignal.asSupplier().get();
   }
 
   public synchronized TalonFXSimState getSimState() {
@@ -359,7 +368,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized boolean isActive() {
-    return Math.abs(master.getVelocity().asSupplier().get()) > 0.0;
+    return Math.abs(masterRotorVelocitySignal.asSupplier().get()) > 0.0;
   }
 
   public synchronized Command applyGoal(TalonFXSubsystemGoal goal) {
@@ -392,7 +401,7 @@ public class TalonFXSubsystem extends SubsystemBase {
                   break;
               }
             });
-    if (Robot.isSimulation() && sim != null) {
+    if (shouldSimulate()) {
       return command
           .beforeStarting(
               () ->
@@ -409,12 +418,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized Command runVoltage(DoubleSupplier voltage) {
-    if (Robot.isSimulation() && sim != null) {
-      return run(() -> setVoltage(voltage.getAsDouble()))
-          .beforeStarting(() -> simulationThread.setSimVoltage(voltage));
-    } else {
-      return run(() -> setVoltage(voltage.getAsDouble()));
-    }
+    return run(() -> setVoltage(voltage.getAsDouble()));
   }
 
   public synchronized void setDutyCycle(double dutyCycle, double dutyCycleFeedforward) {
@@ -427,7 +431,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   public synchronized void setVoltage(double volts, double voltageFeedForward) {
     inVelocityMode = false;
-    if (sim != null) {
+    if (shouldSimulate()) {
       simulationThread.setSimVoltage(() -> volts);
     }
     setMaster(voltageRequest.withOutput(volts + voltageFeedForward));

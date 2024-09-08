@@ -29,7 +29,7 @@ public final class AllianceFlipUtil {
   }
 
   public static <T> T get(T blueValue, T redValue) {
-    return shouldFlip().getAsBoolean() ? redValue : blueValue;
+    return get(blueValue, redValue, false);
   }
 
   public static <T> T get(T blueValue, T redValue, boolean inverse) {

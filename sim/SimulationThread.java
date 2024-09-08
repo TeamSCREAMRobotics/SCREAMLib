@@ -27,7 +27,10 @@ public class SimulationThread {
   private boolean limitVoltage;
 
   public SimulationThread(
-      SimConstants constants, BiConsumer<Double, Double> stateConsumer, double periodSec, String name) {
+      SimConstants constants,
+      BiConsumer<Double, Double> stateConsumer,
+      double periodSec,
+      String name) {
     this.simInterface = constants.sim();
     this.useSeparateThread = constants.useSeparateThread();
     this.limitVoltage = constants.limitVoltage();
