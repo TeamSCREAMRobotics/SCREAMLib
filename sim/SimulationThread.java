@@ -1,6 +1,6 @@
 package com.SCREAMLib.sim;
 
-import com.SCREAMLib.data.DataHelpers.SimConstants;
+import com.SCREAMLib.drivers.TalonFXSubsystem.TalonFXSubsystemSimConstants;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Notifier;
@@ -27,7 +27,7 @@ public class SimulationThread {
   private boolean limitVoltage;
 
   public SimulationThread(
-      SimConstants constants,
+      TalonFXSubsystemSimConstants constants,
       BiConsumer<Double, Double> stateConsumer,
       double periodSec,
       String name) {

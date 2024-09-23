@@ -15,7 +15,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import frc2024.subsystems.swerve.generated.TunerConstants;
 import java.util.function.Supplier;
 
 public class PhoenixSwerveHelper {
@@ -28,24 +27,27 @@ public class PhoenixSwerveHelper {
   private final ApplyChassisSpeeds applyChassisSpeeds;
 
   private final Supplier<Pose2d> poseSup;
-  private final double MAX_SPEED = TunerConstants.SPEED_12V_MPS;
+  private final double MAX_SPEED;
   private final double MAX_ANGULAR_SPEED;
 
   public PhoenixSwerveHelper(
-      Supplier<Pose2d> poseSup, double maxAngularSpeed, ScreamPIDConstants snapConstants) {
+      Supplier<Pose2d> poseSup,
+      double maxAngularSpeed,
+      double maxSpeed,
+      ScreamPIDConstants snapConstants) {
     fieldCentricFacingAngle =
         new FieldCentricFacingAngle()
-            .withDeadband(MAX_SPEED * 0.05)
+            .withDeadband(maxSpeed * 0.05)
             .withDriveRequestType(DriveRequestType.Velocity)
             .withSteerRequestType(SteerRequestType.MotionMagic);
     fieldCentric =
         new FieldCentric()
-            .withDeadband(MAX_SPEED * 0.05)
+            .withDeadband(maxSpeed * 0.05)
             .withDriveRequestType(DriveRequestType.Velocity)
             .withSteerRequestType(SteerRequestType.MotionMagic);
     robotCentric =
         new RobotCentric()
-            .withDeadband(MAX_SPEED * 0.05)
+            .withDeadband(maxSpeed * 0.05)
             .withDriveRequestType(DriveRequestType.Velocity)
             .withSteerRequestType(SteerRequestType.MotionMagic);
     applyChassisSpeeds =
@@ -59,6 +61,7 @@ public class PhoenixSwerveHelper {
 
     this.poseSup = poseSup;
     this.MAX_ANGULAR_SPEED = maxAngularSpeed;
+    this.MAX_SPEED = maxSpeed;
   }
 
   public SwerveRequest getFacingAngle(Translation2d translation, Rotation2d targetAngle) {

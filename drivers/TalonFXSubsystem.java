@@ -1,12 +1,12 @@
 package com.SCREAMLib.drivers;
 
 import com.SCREAMLib.config.DeviceConfig;
-import com.SCREAMLib.data.DataHelpers.SimConstants;
 import com.SCREAMLib.pid.ScreamPIDConstants.MotionMagicConstants;
 import com.SCREAMLib.sim.SimWrapper;
 import com.SCREAMLib.sim.SimulationThread;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.Utils;
+import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.Slot1Configs;
 import com.ctre.phoenix6.configs.Slot2Configs;
@@ -19,12 +19,13 @@ import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.ControlModeValue;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import com.ctre.phoenix6.sim.ChassisReference;
+import com.ctre.phoenix6.sim.CANcoderSimState;
 import com.ctre.phoenix6.sim.TalonFXSimState;
 import dev.doglog.DogLog;
 import edu.wpi.first.math.controller.PIDController;
@@ -34,26 +35,37 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import java.util.function.DoubleSupplier;
 import java.util.function.UnaryOperator;
-import lombok.Getter;
 
 public class TalonFXSubsystem extends SubsystemBase {
 
-  public static record CanDevice(Integer id, String canbus) {
-    public CanDevice() {
+  public static record CANDevice(Integer id, String canbus) {
+    public CANDevice() {
       this(null, null);
     }
   }
 
-  public static record TalonFXConstants(CanDevice device, InvertedValue invert) {
+  public static record TalonFXConstants(CANDevice device, InvertedValue invert) {
     public TalonFXConstants() {
       this(null, null);
     }
   }
 
+  public static record CANCoderConstants(CANDevice device, CANcoderConfiguration config) {}
+
   public interface TalonFXSubsystemGoal {
     DoubleSupplier target();
 
     ControlType controlType();
+  }
+
+  public record TalonFXSubsystemSimConstants(
+      SimWrapper sim,
+      PIDController simController,
+      boolean useSeparateThread,
+      boolean limitVoltage) {
+    public TalonFXSubsystemSimConstants(SimWrapper sim, PIDController simController) {
+      this(sim, simController, false, true);
+    }
   }
 
   public static enum ControlType {
@@ -74,15 +86,17 @@ public class TalonFXSubsystem extends SubsystemBase {
     public double loopPeriodSec = 0.02;
     public double simPeriodSec = 0.001;
 
-    public SimConstants simConstants = null;
+    public TalonFXSubsystemSimConstants simConstants = null;
 
     public TalonFXConstants masterConstants = new TalonFXConstants();
     public TalonFXConstants[] slaveConstants = new TalonFXConstants[0];
 
+    public CANCoderConstants cancoderConstants = null;
+
     public NeutralModeValue neutralMode = NeutralModeValue.Brake;
     public FeedbackSensorSourceValue feedbackSensorSource = FeedbackSensorSourceValue.RotorSensor;
     public int feedbackRemoteSensorId = 99;
-    public double feedbackRemoteSensorOffset = 0.0; // rotations
+    public double feedbackRotorOffset = 0.0; // rotations
     public double rotorToSensorRatio = 1.0;
     public double sensorToMechRatio = 1.0;
     public double softLimitDeadband = 0.0;
@@ -114,10 +128,12 @@ public class TalonFXSubsystem extends SubsystemBase {
   protected final TalonFXSubsystemConstants constants;
   protected final TalonFX master;
   protected final TalonFX[] slaves;
+  protected CANcoder cancoder;
 
-  @Getter protected TalonFXSubsystemGoal goal;
+  protected TalonFXSubsystemGoal goal;
 
   protected TalonFXSimState masterSimState;
+  protected CANcoderSimState cancoderSimState;
   protected SimWrapper sim;
   protected SimulationThread simulationThread;
   protected PIDController simController;
@@ -152,6 +168,13 @@ public class TalonFXSubsystem extends SubsystemBase {
         new TalonFX(constants.masterConstants.device.id, constants.masterConstants.device.canbus);
     slaves = new TalonFX[constants.slaveConstants.length];
     slaveConfigs = new TalonFXConfiguration[constants.slaveConstants.length];
+    if (constants.cancoderConstants != null) {
+      cancoder =
+          new CANcoder(
+              constants.cancoderConstants.device.id, constants.cancoderConstants.device.canbus);
+      CANcoderConfiguration cancoderConfig = constants.cancoderConstants.config;
+      DeviceConfig.configureCANcoder(constants.name + " CANcoder", cancoder, cancoderConfig);
+    }
 
     goal = defaultGoal;
 
@@ -159,6 +182,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     masterConfig.Feedback.FeedbackSensorSource = constants.feedbackSensorSource;
     masterConfig.Feedback.FeedbackRemoteSensorID = constants.feedbackRemoteSensorId;
+    masterConfig.Feedback.FeedbackRotorOffset = constants.feedbackRotorOffset;
 
     forwardSoftLimitRotations = (constants.maxUnitsLimit - constants.softLimitDeadband);
     masterConfig.SoftwareLimitSwitch.ForwardSoftLimitThreshold = forwardSoftLimitRotations;
@@ -217,8 +241,10 @@ public class TalonFXSubsystem extends SubsystemBase {
     velocityRequest = new VelocityVoltage(0.0);
     motionMagicVelocityRequest = new MotionMagicVelocityVoltage(0.0);
 
-    master.getRotorPosition().setUpdateFrequency(50.0);
-    master.getRotorVelocity().setUpdateFrequency(50.0);
+    master.getRotorPosition().setUpdateFrequency(25.0);
+    master.getRotorVelocity().setUpdateFrequency(25.0);
+    master.getPosition().setUpdateFrequency(100.0);
+    master.getVelocity().setUpdateFrequency(100.0);
 
     masterPositionSignal = master.getPosition();
     masterVelocitySignal = master.getVelocity();
@@ -227,11 +253,10 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     if (shouldSimulate()) {
       masterSimState = master.getSimState();
+      if (constants.cancoderConstants != null) {
+        cancoderSimState = cancoder.getSimState();
+      }
       sim = constants.simConstants.sim();
-      masterSimState.Orientation =
-          constants.masterConstants.invert == InvertedValue.Clockwise_Positive
-              ? ChassisReference.Clockwise_Positive
-              : ChassisReference.CounterClockwise_Positive;
       simulationThread =
           new SimulationThread(
               constants.simConstants,
@@ -295,7 +320,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     configMaster(masterConfig);
   }
 
-  public boolean shouldSimulate() {
+  private boolean shouldSimulate() {
     return Utils.isSimulation() && constants.simConstants != null;
   }
 
@@ -327,8 +352,14 @@ public class TalonFXSubsystem extends SubsystemBase {
     return setpoint;
   }
 
+  public synchronized TalonFXSubsystemGoal getGoal() {
+    return goal;
+  }
+
   public synchronized double getError() {
-    return inVelocityMode ? setpoint - getVelocity() : setpoint - getPosition();
+    return inVelocityMode
+        ? goal.target().getAsDouble() - getVelocity()
+        : goal.target().getAsDouble() - getPosition();
   }
 
   public synchronized Rotation2d getAngle() {
@@ -363,8 +394,8 @@ public class TalonFXSubsystem extends SubsystemBase {
             ? goal.target().getAsDouble() - getVelocity()
             : goal.target().getAsDouble() - getPosition();
     return inVelocityMode
-        ? error <= constants.velocityThreshold
-        : error <= constants.positionThreshold;
+        ? Math.abs(error) <= constants.velocityThreshold
+        : Math.abs(error) <= constants.positionThreshold;
   }
 
   public synchronized boolean isActive() {
@@ -526,6 +557,20 @@ public class TalonFXSubsystem extends SubsystemBase {
    */
   public synchronized void setSimState(double position, double velocity) {
     if (constants.codeEnabled) {
+      if (constants.cancoderConstants != null) {
+        switch (constants.feedbackSensorSource) {
+          case FusedCANcoder:
+          case RemoteCANcoder:
+            cancoderSimState.setRawPosition(
+                position / constants.rotorToSensorRatio * constants.sensorToMechRatio);
+            break;
+          case SyncCANcoder:
+          case RotorSensor:
+            break;
+          default:
+            break;
+        }
+      }
       masterSimState.setRawRotorPosition(position);
       masterSimState.setSupplyVoltage(RobotController.getBatteryVoltage());
       masterSimState.setRotorVelocity(velocity);
@@ -589,10 +634,9 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public void outputTelemetry() {
-    /* DogLog.log(
-    "RobotState/Subsystems/" + constants.name + "/AppliedVolts",
-    simulationThread.getSimVoltage().getAsDouble()); */
-    // TODO simulation check
+    DogLog.log(
+        "RobotState/Subsystems/" + constants.name + "/AppliedVolts",
+        shouldSimulate() ? simulationThread.getSimVoltage().getAsDouble() : voltageRequest.Output);
     DogLog.log("RobotState/Subsystems/" + constants.name + "/Position", getPosition());
     DogLog.log(
         "RobotState/Subsystems/" + constants.name + "/Velocity",

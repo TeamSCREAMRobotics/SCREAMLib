@@ -42,6 +42,11 @@ public class ScreamMath {
     return new Translation3d(newX, newY, newZ);
   }
 
+  public static Translation2d rotatePoint(Translation2d point, Rotation2d yaw) {
+    Translation3d t3d = rotatePoint(new Translation3d(point.getX(), point.getY(), 0), yaw);
+    return t3d.toTranslation2d();
+  }
+
   public static Rotation2d calculateAngleToPoint(Translation2d current, Translation2d target) {
     double targetX = target.getX() - current.getX();
     double targetY = target.getY() - current.getY();

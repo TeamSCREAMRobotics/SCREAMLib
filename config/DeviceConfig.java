@@ -34,31 +34,39 @@ public class DeviceConfig {
         new DeviceConfiguration() {
           @Override
           public boolean configureSettings() {
-            return ErrorChecker.hasConfiguredWithoutErrors(
-                fx.getConfigurator().apply(config), fx.getConfigurator().setPosition(0.0));
-          }
-        };
-    ErrorChecker.configureDevice(
-        deviceConfig, name + " " + fx.getDescription() + " version " + fx.getVersion(), true);
-  }
-
-  public static void configureCANcoder(
-      String name, CANcoder encoder, CANcoderConfiguration config, double updateFrequencyHz) {
-    DeviceConfiguration deviceConfig =
-        new DeviceConfiguration() {
-          @Override
-          public boolean configureSettings() {
-            return ErrorChecker.hasConfiguredWithoutErrors(
-                encoder.getConfigurator().apply(config),
-                encoder.getVelocity().setUpdateFrequency(updateFrequencyHz),
-                encoder.getPosition().setUpdateFrequency(updateFrequencyHz),
-                encoder.getSupplyVoltage().setUpdateFrequency(50.0),
-                encoder.getAbsolutePosition().setUpdateFrequency(updateFrequencyHz));
+            return ErrorChecker.hasConfiguredWithoutErrors(fx.getConfigurator().apply(config));
           }
         };
     ErrorChecker.configureDevice(
         deviceConfig,
-        name + " " + encoder.getDeviceID() + " version " + encoder.getVersion(),
+        name
+            + " "
+            + fx.getDescription()
+            + " version "
+            + fx.getVersion()
+            + " network"
+            + fx.getNetwork(),
+        true);
+  }
+
+  public static void configureCANcoder(
+      String name, CANcoder encoder, CANcoderConfiguration config) {
+    DeviceConfiguration deviceConfig =
+        new DeviceConfiguration() {
+          @Override
+          public boolean configureSettings() {
+            return ErrorChecker.hasConfiguredWithoutErrors(encoder.getConfigurator().apply(config));
+          }
+        };
+    ErrorChecker.configureDevice(
+        deviceConfig,
+        name
+            + " "
+            + encoder.getDeviceID()
+            + " version "
+            + encoder.getVersion()
+            + " network "
+            + encoder.getNetwork(),
         true);
   }
 

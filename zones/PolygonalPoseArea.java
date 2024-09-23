@@ -1,5 +1,6 @@
-package com.SCREAMLib.data;
+package com.SCREAMLib.zones;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import java.util.List;
 
@@ -9,6 +10,10 @@ public class PolygonalPoseArea {
 
   public PolygonalPoseArea(List<Translation2d> vertices) {
     this.vertices = vertices;
+  }
+
+  public boolean contains(Pose2d pose) {
+    return contains(pose.getTranslation());
   }
 
   public boolean contains(Translation2d point) {

@@ -12,7 +12,7 @@ public class Length {
   }
 
   public static Length fromInches(double inches) {
-    return from(inches, 1.0);
+    return new Length(inches);
   }
 
   public static Length fromFeet(double feet) {
