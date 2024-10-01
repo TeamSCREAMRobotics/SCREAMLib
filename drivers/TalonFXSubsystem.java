@@ -30,6 +30,7 @@ import com.ctre.phoenix6.sim.TalonFXSimState;
 import dev.doglog.DogLog;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -81,6 +82,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     public String name = "ERROR_ASSIGN_A_NAME";
 
     public boolean codeEnabled = true;
+    public boolean forceSimulation = false;
     public boolean outputTelemetry = false;
 
     public double loopPeriodSec = 0.02;
@@ -321,7 +323,15 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   private boolean shouldSimulate() {
-    return Utils.isSimulation() && constants.simConstants != null;
+    if (constants.forceSimulation && constants.simConstants == null) {
+      DriverStation.reportError(
+          "Could not force simulation in "
+              + constants.name
+              + ", simulation constants were not provided",
+          true);
+      return false;
+    }
+    return (Utils.isSimulation() && constants.simConstants != null) || constants.forceSimulation;
   }
 
   public synchronized ControlModeValue getControlMode() {
@@ -442,14 +452,15 @@ public class TalonFXSubsystem extends SubsystemBase {
                           : goal.controlType() == ControlType.DUTY_CYCLE
                               ? () -> goal.target().getAsDouble() * 12.0
                               : () -> getSimControllerOutput()))
-          .finallyDo(() -> simController.reset());
+          .finallyDo(() -> simController.reset())
+          .withName(constants.name + ": applyGoal(" + goal.toString() + ")");
     } else {
-      return command;
+      return command.withName(constants.name + ": applyGoal(" + goal.toString() + ")");
     }
   }
 
   public synchronized Command runVoltage(DoubleSupplier voltage) {
-    return run(() -> setVoltage(voltage.getAsDouble()));
+    return run(() -> setVoltage(voltage.getAsDouble())).withName(constants.name + ": runVoltage");
   }
 
   public synchronized void setDutyCycle(double dutyCycle, double dutyCycleFeedforward) {
@@ -624,6 +635,17 @@ public class TalonFXSubsystem extends SubsystemBase {
       outputTelemetry();
     }
     DogLog.log("RobotState/Subsystems/" + constants.name + "/Goal", goal.toString());
+    DogLog.log(
+        "RobotState/Subsystems/" + constants.name + "/GoalTarget", goal.target().getAsDouble());
+    DogLog.log("RobotState/Subsystems/" + constants.name + "/Setpoint", setpoint);
+    DogLog.log(
+        "RobotState/Subsystems/" + constants.name + "/Actual",
+        inVelocityMode ? getVelocity() : getPosition());
+    if (getCurrentCommand() != null) {
+      DogLog.log(
+          "RobotState/Subsystems/" + constants.name + "/ActiveCommand",
+          getCurrentCommand().getName());
+    }
   }
 
   @Override
@@ -663,6 +685,12 @@ public class TalonFXSubsystem extends SubsystemBase {
     master.stopMotor();
     for (TalonFX slave : slaves) {
       slave.stopMotor();
+    }
+  }
+
+  public static void stopAll(TalonFXSubsystem... subsystems) {
+    for (TalonFXSubsystem sub : subsystems) {
+      sub.stop();
     }
   }
 }

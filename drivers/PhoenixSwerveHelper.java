@@ -2,6 +2,7 @@ package com.SCREAMLib.drivers;
 
 import com.SCREAMLib.math.ScreamMath;
 import com.SCREAMLib.pid.ScreamPIDConstants;
+import com.SCREAMLib.util.AllianceFlipUtil;
 import com.ctre.phoenix6.mechanisms.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.mechanisms.swerve.SwerveModule.SteerRequestType;
 import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest;
@@ -10,7 +11,10 @@ import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest.FieldCentric;
 import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest.FieldCentricFacingAngle;
 import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest.RobotCentric;
 import com.ctre.phoenix6.mechanisms.swerve.utility.PhoenixPIDController;
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.filter.Debouncer;
+import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -19,7 +23,8 @@ import java.util.function.Supplier;
 
 public class PhoenixSwerveHelper {
 
-  private final PhoenixPIDController headingController;
+  private final PhoenixPIDController snapController;
+  private final PIDController headingCorrectionController;
 
   private final FieldCentricFacingAngle fieldCentricFacingAngle;
   private final FieldCentric fieldCentric;
@@ -28,13 +33,15 @@ public class PhoenixSwerveHelper {
 
   private final Supplier<Pose2d> poseSup;
   private final double MAX_SPEED;
-  private final double MAX_ANGULAR_SPEED;
+
+  private Debouncer correctionDebouncer = new Debouncer(0.2, DebounceType.kRising);
+  private Rotation2d lastAngle = AllianceFlipUtil.getForwardRotation();
 
   public PhoenixSwerveHelper(
       Supplier<Pose2d> poseSup,
-      double maxAngularSpeed,
       double maxSpeed,
-      ScreamPIDConstants snapConstants) {
+      ScreamPIDConstants snapConstants,
+      ScreamPIDConstants headingCorrectionConstants) {
     fieldCentricFacingAngle =
         new FieldCentricFacingAngle()
             .withDeadband(maxSpeed * 0.05)
@@ -55,20 +62,25 @@ public class PhoenixSwerveHelper {
             .withDriveRequestType(DriveRequestType.Velocity)
             .withSteerRequestType(SteerRequestType.MotionMagic);
 
-    this.headingController = snapConstants.getPhoenixPIDController();
-    fieldCentricFacingAngle.HeadingController = headingController;
+    this.snapController = snapConstants.getPhoenixPIDController();
+    fieldCentricFacingAngle.HeadingController = snapController;
     fieldCentricFacingAngle.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
 
+    this.headingCorrectionController = headingCorrectionConstants.getPIDController();
+    this.headingCorrectionController.enableContinuousInput(-Math.PI, Math.PI);
+
     this.poseSup = poseSup;
-    this.MAX_ANGULAR_SPEED = maxAngularSpeed;
     this.MAX_SPEED = maxSpeed;
   }
 
+  public void setLastAngle(Rotation2d angle) {
+    lastAngle = angle;
+  }
+
   public SwerveRequest getFacingAngle(Translation2d translation, Rotation2d targetAngle) {
-    Translation2d xy = translation.times(MAX_SPEED);
     return fieldCentricFacingAngle
-        .withVelocityX(xy.getX())
-        .withVelocityY(xy.getY())
+        .withVelocityX(translation.getX())
+        .withVelocityY(translation.getY())
         .withTargetDirection(targetAngle);
   }
 
@@ -81,10 +93,9 @@ public class PhoenixSwerveHelper {
 
   public SwerveRequest getFacingAngleCOR(
       Translation2d translation, Rotation2d targetAngle, Translation2d centerOfRotation) {
-    Translation2d xy = translation.times(MAX_SPEED);
     return fieldCentricFacingAngle
-        .withVelocityX(xy.getX())
-        .withVelocityY(xy.getY())
+        .withVelocityX(translation.getX())
+        .withVelocityY(translation.getY())
         .withTargetDirection(targetAngle)
         .withCenterOfRotation(centerOfRotation);
   }
@@ -115,41 +126,55 @@ public class PhoenixSwerveHelper {
             : ScreamMath.calculateAngleToPoint(poseSup.get().getTranslation(), targetPoint));
   }
 
-  public SwerveRequest getFieldCentric(Translation2d translation, double angularVelocity) {
-    Translation2d xy = translation.times(MAX_SPEED);
-    double omega = angularVelocity * MAX_ANGULAR_SPEED;
+  public SwerveRequest getHeadingCorrectedFieldCentric(
+      Translation2d translation, double angularVelocity) {
+    double omega;
+    if (correctionDebouncer.calculate(Math.abs(angularVelocity) < 0.05)) {
+      omega =
+          headingCorrectionController.calculate(
+              poseSup.get().getRotation().getRadians(), lastAngle.getRadians());
+    } else {
+      omega = angularVelocity;
+      lastAngle = poseSup.get().getRotation();
+    }
     return fieldCentric
-        .withVelocityX(xy.getX())
-        .withVelocityY(xy.getY())
+        .withVelocityX(translation.getX())
+        .withVelocityY(translation.getY())
         .withRotationalRate(omega)
+        .withCenterOfRotation(new Translation2d());
+  }
+
+  public SwerveRequest getFieldCentric(Translation2d translation, double angularVelocity) {
+    return fieldCentric
+        .withVelocityX(translation.getX())
+        .withVelocityY(translation.getY())
+        .withRotationalRate(angularVelocity)
         .withCenterOfRotation(new Translation2d());
   }
 
   public SwerveRequest getFieldCentricCOR(
       Translation2d translation, double angularVelocity, Translation2d centerOfRotation) {
-    Translation2d xy = translation.times(MAX_SPEED);
-    double omega = angularVelocity * MAX_ANGULAR_SPEED;
     return fieldCentric
-        .withVelocityX(xy.getX())
-        .withVelocityY(xy.getY())
-        .withRotationalRate(omega)
-        .withCenterOfRotation(centerOfRotation);
+        .withVelocityX(translation.getX())
+        .withVelocityY(translation.getY())
+        .withRotationalRate(angularVelocity)
+        .withCenterOfRotation(new Translation2d());
   }
 
   public SwerveRequest getRobotCentric(Translation2d translation, double angularVelocity) {
-    Translation2d xy = translation.times(MAX_SPEED);
-    double omega = angularVelocity * MAX_ANGULAR_SPEED;
-    return robotCentric.withVelocityX(xy.getX()).withVelocityY(xy.getY()).withRotationalRate(omega);
+    return robotCentric
+        .withVelocityX(translation.getX())
+        .withVelocityY(translation.getY())
+        .withRotationalRate(angularVelocity)
+        .withCenterOfRotation(new Translation2d());
   }
 
   public SwerveRequest getRobotCentricCOR(
       Translation2d translation, double angularVelocity, Translation2d centerOfRotation) {
-    Translation2d xy = translation.times(MAX_SPEED);
-    double omega = angularVelocity * MAX_ANGULAR_SPEED;
     return robotCentric
-        .withVelocityX(xy.getX())
-        .withVelocityY(xy.getY())
-        .withRotationalRate(omega)
+        .withVelocityX(translation.getX())
+        .withVelocityY(translation.getY())
+        .withRotationalRate(angularVelocity)
         .withCenterOfRotation(centerOfRotation);
   }
 
