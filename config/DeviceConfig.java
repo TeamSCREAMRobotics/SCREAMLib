@@ -34,7 +34,7 @@ public class DeviceConfig {
         new DeviceConfiguration() {
           @Override
           public boolean configureSettings() {
-            return ErrorChecker.hasConfiguredWithoutErrors(fx.getConfigurator().apply(config));
+            return ErrorChecker.hasConfiguredWithoutErrors(fx.clearStickyFaults(), fx.getConfigurator().apply(config));
           }
         };
     ErrorChecker.configureDevice(
