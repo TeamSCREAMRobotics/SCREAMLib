@@ -34,7 +34,8 @@ public class DeviceConfig {
         new DeviceConfiguration() {
           @Override
           public boolean configureSettings() {
-            return ErrorChecker.hasConfiguredWithoutErrors(fx.clearStickyFaults(), fx.getConfigurator().apply(config));
+            return ErrorChecker.hasConfiguredWithoutErrors(
+                fx.clearStickyFaults(), fx.getConfigurator().apply(config));
           }
         };
     ErrorChecker.configureDevice(
@@ -44,7 +45,7 @@ public class DeviceConfig {
             + fx.getDescription()
             + " version "
             + fx.getVersion()
-            + " network"
+            + "network"
             + fx.getNetwork(),
         true);
   }

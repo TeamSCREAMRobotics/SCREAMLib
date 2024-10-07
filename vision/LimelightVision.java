@@ -1,7 +1,11 @@
 package com.SCREAMLib.vision;
 
+import com.SCREAMLib.data.Length;
+import com.SCREAMLib.vision.LimelightHelpers.PoseEstimate;
+
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation2d;
 
 public class LimelightVision {
 
@@ -37,28 +41,17 @@ public class LimelightVision {
     return LimelightHelpers.getLatency_Capture(limelight.name);
   }
 
-  public static Pose2d getBotPose2d(Limelight limelight) {
-    return LimelightHelpers.getBotPose2d_wpiBlue(limelight.name);
+  public static PoseEstimate getPoseEstimate_MT2(Limelight limelight, double robotHeadingDegrees, double yawRateDps){
+    LimelightHelpers.SetRobotOrientation(limelight.name, robotHeadingDegrees, yawRateDps, 0, 0, 0, 0);
+    return LimelightHelpers.getBotPoseEstimate_wpiBlue(limelight.name);
   }
 
-  public static Pose3d getBotPose3d(Limelight limelight) {
-    return LimelightHelpers.getBotPose3d_wpiBlue(limelight.name);
-  }
-
-  public static Pose2d getBotPose2d_TargetSpace(Limelight limelight) {
-    return LimelightHelpers.getBotPose3d_TargetSpace(limelight.name).toPose2d();
-  }
-
-  public static Pose3d getBotPose3d_TargetSpace(Limelight limelight) {
-    return LimelightHelpers.getBotPose3d_TargetSpace(limelight.name);
-  }
-
-  public static double getDistanceToTargetMeters(double targetHeight, Limelight limelight) {
+  public static Length getDistanceToTargetTYBased(Length targetHeight, Limelight limelight) {
     double goal_theta =
         limelight.relativePosition.getRotation().getY() + Math.toRadians(getTY(limelight));
-    double height_diff = targetHeight - limelight.relativePosition.getZ();
+    double height_diff = targetHeight.getMeters() - limelight.relativePosition.getZ();
 
-    return height_diff / Math.tan(goal_theta);
+    return Length.fromMeters(height_diff / Math.tan(goal_theta));
   }
 
   public static int getCurrentPipeline(Limelight limelight) {

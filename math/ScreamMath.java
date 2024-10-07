@@ -5,8 +5,11 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.util.Units;
 
 public class ScreamMath {
+
+  public static final double METERS_PER_INCH = 0.0254;
 
   public static double average(double... nums) {
     if (nums.length == 0) return 0.0;

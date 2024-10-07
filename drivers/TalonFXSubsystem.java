@@ -26,6 +26,7 @@ import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.sim.CANcoderSimState;
+import com.ctre.phoenix6.sim.ChassisReference;
 import com.ctre.phoenix6.sim.TalonFXSimState;
 import dev.doglog.DogLog;
 import edu.wpi.first.math.controller.PIDController;
@@ -63,9 +64,10 @@ public class TalonFXSubsystem extends SubsystemBase {
       SimWrapper sim,
       PIDController simController,
       boolean useSeparateThread,
-      boolean limitVoltage) {
+      boolean limitVoltage,
+      boolean negateOutput) {
     public TalonFXSubsystemSimConstants(SimWrapper sim, PIDController simController) {
-      this(sim, simController, false, true);
+      this(sim, simController, false, true, false);
     }
   }
 
@@ -83,7 +85,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     public boolean codeEnabled = true;
     public boolean forceSimulation = false;
-    public boolean outputTelemetry = false;
+    public boolean logTelemetry = false;
 
     public double loopPeriodSec = 0.02;
     public double simPeriodSec = 0.001;
@@ -123,8 +125,8 @@ public class TalonFXSubsystem extends SubsystemBase {
     public int statorCurrentLimit = 40; // amps
     public boolean enableStatorCurrentLimit = false;
 
-    public double maxUnitsLimit = Double.POSITIVE_INFINITY;
-    public double minUnitsLimit = Double.NEGATIVE_INFINITY;
+    public double maxUnitsLimit = 3.4e+38;
+    public double minUnitsLimit = -3.4e+38;
   }
 
   protected final TalonFXSubsystemConstants constants;
@@ -160,8 +162,12 @@ public class TalonFXSubsystem extends SubsystemBase {
   protected final VelocityVoltage velocityRequest;
   protected final MotionMagicVelocityVoltage motionMagicVelocityRequest;
 
+  protected final String logPrefix;
+
   protected double setpoint = 0;
   public boolean inVelocityMode = false;
+
+  protected boolean isEStopped = false;
 
   protected TalonFXSubsystem(
       final TalonFXSubsystemConstants constants, final TalonFXSubsystemGoal defaultGoal) {
@@ -266,20 +272,43 @@ public class TalonFXSubsystem extends SubsystemBase {
               constants.simPeriodSec,
               constants.name + " Sim Thread");
       simController = constants.simConstants.simController();
+      masterSimState.Orientation =
+          constants.masterConstants.invert == InvertedValue.Clockwise_Positive
+              ? ChassisReference.Clockwise_Positive
+              : ChassisReference.CounterClockwise_Positive;
     }
 
     setDefaultCommand(applyGoal(goal));
+
+    logPrefix = "RobotState/Subsystems/" + constants.name + "/";
+
     System.out.println("[Init] " + constants.name + " initialization complete!");
   }
 
+  /**
+   * Configures the master motor with the given configuration.
+   * 
+   * @param config - The config to apply to the master.
+   */
   public void configMaster(TalonFXConfiguration config) {
     DeviceConfig.configureTalonFX(constants.name + " Master", master, config);
   }
 
+    /**
+   * Configures a slave motor with the given configuration.
+   * 
+   * @param slave - The slave to apply the config to.
+   * @param config - The config to apply to the slave.
+   */
   public void configSlave(TalonFX slave, TalonFXConfiguration config) {
     DeviceConfig.configureTalonFX(constants.name + " Slave", slave, config);
   }
 
+  /**
+   * Reconfigures the motors with the given stator current limits.
+   * @param currentLimit - Stator current limit to apply.
+   * @param enable - Whether the current limit should be enabled.
+   */
   public void setStatorCurrentLimit(double currentLimit, boolean enable) {
     changeTalonConfig(
         (conf) -> {
@@ -289,6 +318,10 @@ public class TalonFXSubsystem extends SubsystemBase {
         });
   }
 
+  /**
+   * Reconfigures the motors to enable soft limits.
+   * @param enable - Whether the soft limits should be enabled.
+   */
   public void enableSoftLimits(boolean enable) {
     changeTalonConfig(
         (conf) -> {
@@ -298,11 +331,52 @@ public class TalonFXSubsystem extends SubsystemBase {
         });
   }
 
+    /**
+   * Sets the neutral mode of the motors.
+   * @param mode - The neutral mode to apply to the motors.
+   */
   public void setNeutralMode(NeutralModeValue mode) {
     master.setNeutralMode(mode);
     for (TalonFX slave : slaves) {
       slave.setNeutralMode(mode);
     }
+  }
+
+  public synchronized void setSupplyCurrentLimit(double value, boolean enable) {
+    masterConfig.CurrentLimits.SupplyCurrentLimit = value;
+    masterConfig.CurrentLimits.SupplyCurrentLimitEnable = enable;
+
+    configMaster(masterConfig);
+  }
+
+  public synchronized void setSupplyCurrentLimitUnchecked(double value, boolean enable) {
+    masterConfig.CurrentLimits.SupplyCurrentLimit = value;
+    masterConfig.CurrentLimits.SupplyCurrentLimitEnable = enable;
+
+    master.getConfigurator().apply(masterConfig);
+  }
+
+  public synchronized void setStatorCurrentLimitUnchecked(double value, boolean enable) {
+    masterConfig.CurrentLimits.StatorCurrentLimit = value;
+    masterConfig.CurrentLimits.StatorCurrentLimitEnable = enable;
+
+    master.getConfigurator().apply(masterConfig);
+  }
+
+  public synchronized void setMotionMagicConfigsUnchecked(MotionMagicConstants configs) {
+    masterConfig.MotionMagic.MotionMagicAcceleration = configs.acceleration();
+    masterConfig.MotionMagic.MotionMagicJerk = configs.jerk();
+    masterConfig.MotionMagic.MotionMagicCruiseVelocity = configs.cruiseVelocity();
+
+    master.getConfigurator().apply(masterConfig.MotionMagic);
+  }
+
+  public synchronized void setMotionMagicConfigs(MotionMagicConstants configs) {
+    masterConfig.MotionMagic.MotionMagicAcceleration = configs.acceleration();
+    masterConfig.MotionMagic.MotionMagicJerk = configs.jerk();
+    masterConfig.MotionMagic.MotionMagicCruiseVelocity = configs.cruiseVelocity();
+
+    configMaster(masterConfig);
   }
 
   public void changeTalonConfig(UnaryOperator<TalonFXConfiguration> configChanger) {
@@ -453,14 +527,20 @@ public class TalonFXSubsystem extends SubsystemBase {
                               ? () -> goal.target().getAsDouble() * 12.0
                               : () -> getSimControllerOutput()))
           .finallyDo(() -> simController.reset())
-          .withName(constants.name + ": applyGoal(" + goal.toString() + ")");
+          .withName("applyGoal(" + goal.toString() + ")");
     } else {
-      return command.withName(constants.name + ": applyGoal(" + goal.toString() + ")");
+      return command.withName("applyGoal(" + goal.toString() + ")");
     }
   }
 
   public synchronized Command runVoltage(DoubleSupplier voltage) {
-    return run(() -> setVoltage(voltage.getAsDouble())).withName(constants.name + ": runVoltage");
+    return run(() -> setVoltage(voltage.getAsDouble())).withName("runVoltage");
+  }
+
+  public synchronized Command runVoltage(
+      DoubleSupplier voltage, DoubleSupplier voltageFeedforward) {
+    return run(() -> setVoltage(voltage.getAsDouble(), voltageFeedforward.getAsDouble()))
+        .withName("runVoltage");
   }
 
   public synchronized void setDutyCycle(double dutyCycle, double dutyCycleFeedforward) {
@@ -514,7 +594,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized void setSetpointMotionMagicVelocity(double velocity) {
-    setSetpointMotionMagicPosition(velocity, 0.0);
+    setSetpointMotionMagicVelocity(velocity, 0.0);
   }
 
   private synchronized void setTargetPosition(
@@ -540,7 +620,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized void setMaster(ControlRequest control) {
-    if (constants.codeEnabled) {
+    if (constants.codeEnabled && !isEStopped) {
       master.setControl(control);
     }
   }
@@ -567,7 +647,7 @@ public class TalonFXSubsystem extends SubsystemBase {
    *     </ul>
    */
   public synchronized void setSimState(double position, double velocity) {
-    if (constants.codeEnabled) {
+    if (constants.codeEnabled && !isEStopped) {
       if (constants.cancoderConstants != null) {
         switch (constants.feedbackSensorSource) {
           case FusedCANcoder:
@@ -592,59 +672,17 @@ public class TalonFXSubsystem extends SubsystemBase {
     master.setPosition(0.0);
   }
 
-  public synchronized void setSupplyCurrentLimit(double value, boolean enable) {
-    masterConfig.CurrentLimits.SupplyCurrentLimit = value;
-    masterConfig.CurrentLimits.SupplyCurrentLimitEnable = enable;
-
-    configMaster(masterConfig);
-  }
-
-  public synchronized void setSupplyCurrentLimitUnchecked(double value, boolean enable) {
-    masterConfig.CurrentLimits.SupplyCurrentLimit = value;
-    masterConfig.CurrentLimits.SupplyCurrentLimitEnable = enable;
-
-    master.getConfigurator().apply(masterConfig);
-  }
-
-  public synchronized void setStatorCurrentLimitUnchecked(double value, boolean enable) {
-    masterConfig.CurrentLimits.StatorCurrentLimit = value;
-    masterConfig.CurrentLimits.StatorCurrentLimitEnable = enable;
-
-    master.getConfigurator().apply(masterConfig);
-  }
-
-  public synchronized void setMotionMagicConfigsUnchecked(MotionMagicConstants configs) {
-    masterConfig.MotionMagic.MotionMagicAcceleration = configs.acceleration();
-    masterConfig.MotionMagic.MotionMagicJerk = configs.jerk();
-    masterConfig.MotionMagic.MotionMagicCruiseVelocity = configs.cruiseVelocity();
-
-    master.getConfigurator().apply(masterConfig.MotionMagic);
-  }
-
-  public synchronized void setMotionMagicConfigs(MotionMagicConstants configs) {
-    masterConfig.MotionMagic.MotionMagicAcceleration = configs.acceleration();
-    masterConfig.MotionMagic.MotionMagicJerk = configs.jerk();
-    masterConfig.MotionMagic.MotionMagicCruiseVelocity = configs.cruiseVelocity();
-
-    configMaster(masterConfig);
-  }
-
   @Override
   public void periodic() {
-    if (constants.outputTelemetry) {
+    if (constants.logTelemetry) {
       outputTelemetry();
     }
-    DogLog.log("RobotState/Subsystems/" + constants.name + "/Goal", goal.toString());
-    DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/GoalTarget", goal.target().getAsDouble());
-    DogLog.log("RobotState/Subsystems/" + constants.name + "/Setpoint", setpoint);
-    DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/Actual",
-        inVelocityMode ? getVelocity() : getPosition());
+    DogLog.log(logPrefix + "Goal", goal.toString());
+    DogLog.log(logPrefix + "GoalTarget", goal.target().getAsDouble());
+    DogLog.log(logPrefix + "Setpoint", setpoint);
+    DogLog.log(logPrefix + "Actual", inVelocityMode ? getVelocity() : getPosition());
     if (getCurrentCommand() != null) {
-      DogLog.log(
-          "RobotState/Subsystems/" + constants.name + "/ActiveCommand",
-          getCurrentCommand().getName());
+      DogLog.log(logPrefix + "ActiveCommand", getCurrentCommand().getName());
     }
   }
 
@@ -657,28 +695,26 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   public void outputTelemetry() {
     DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/AppliedVolts",
+        logPrefix + "AppliedVolts",
         shouldSimulate() ? simulationThread.getSimVoltage().getAsDouble() : voltageRequest.Output);
-    DogLog.log("RobotState/Subsystems/" + constants.name + "/Position", getPosition());
+    DogLog.log(logPrefix + "Position", getPosition());
+    DogLog.log(logPrefix + "Velocity", new double[] {getVelocity(), getVelocity() * 60.0});
+    DogLog.log(logPrefix + "Rotor Position", getRotorPosition());
     DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/Velocity",
-        new double[] {getVelocity(), getVelocity() * 60.0});
-    DogLog.log("RobotState/Subsystems/" + constants.name + "/Rotor Position", getRotorPosition());
-    DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/Rotor Velocity",
-        new double[] {getRotorVelocity(), getRotorVelocity() * 60.0});
-    DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/Supply Voltage",
-        master.getSupplyVoltage().getValueAsDouble());
-    DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/Supply Current",
-        master.getSupplyCurrent().getValueAsDouble());
-    DogLog.log("RobotState/Subsystems/" + constants.name + "/Setpoint", getSetpoint());
-    DogLog.log("RobotState/Subsystems/" + constants.name + "/Error", getError());
-    DogLog.log("RobotState/Subsystems/" + constants.name + "/At Goal?", atGoal());
-    DogLog.log("RobotState/Subsystems/" + constants.name + "/In Velocity Mode", inVelocityMode);
-    DogLog.log(
-        "RobotState/Subsystems/" + constants.name + "/Control Mode", getControlMode().toString());
+        logPrefix + "Rotor Velocity", new double[] {getRotorVelocity(), getRotorVelocity() * 60.0});
+    DogLog.log(logPrefix + "Supply Voltage", master.getSupplyVoltage().getValueAsDouble());
+    DogLog.log(logPrefix + "Supply Current", master.getSupplyCurrent().getValueAsDouble());
+    DogLog.log(logPrefix + "Setpoint", getSetpoint());
+    DogLog.log(logPrefix + "Error", getError());
+    DogLog.log(logPrefix + "At Goal?", atGoal());
+    DogLog.log(logPrefix + "In Velocity Mode", inVelocityMode);
+    DogLog.log(logPrefix + "Control Mode", getControlMode().toString());
+  }
+
+  public void emergencyStop(){
+    stop();
+    setNeutralMode(NeutralModeValue.Coast);
+    isEStopped = true;
   }
 
   public void stop() {

@@ -11,6 +11,7 @@ import lombok.Getter;
 
 public class SimulationThread {
 
+  private String name;
   private SimInterface simInterface;
   private Notifier simNotifier = null;
   private double lastSimTime;
@@ -25,15 +26,18 @@ public class SimulationThread {
 
   private double periodSec;
   private boolean limitVoltage;
+  private boolean negateOutput;
 
   public SimulationThread(
       TalonFXSubsystemSimConstants constants,
       BiConsumer<Double, Double> stateConsumer,
       double periodSec,
       String name) {
+    this.name = name;
     this.simInterface = constants.sim();
     this.useSeparateThread = constants.useSeparateThread();
     this.limitVoltage = constants.limitVoltage();
+    this.negateOutput = constants.negateOutput();
     this.stateConsumer = stateConsumer;
     this.periodSec = periodSec;
     if (useSeparateThread) {
@@ -51,7 +55,7 @@ public class SimulationThread {
 
   public void update() {
     if (useSeparateThread) {
-      DriverStation.reportError("Do not call update if using separate thread!", true);
+      DriverStation.reportError("Simulation thread: " + name + " | Do not call update if using separate thread!", true);
       return;
     }
     final double currentTime = Timer.getFPGATimestamp();
@@ -59,7 +63,8 @@ public class SimulationThread {
     lastSimTime = currentTime;
 
     simInterface.update(deltaTime);
-    simInterface.setInputVoltage(simVoltage.getAsDouble());
+    simInterface.setInputVoltage(
+        negateOutput ? -simVoltage.getAsDouble() : simVoltage.getAsDouble());
     stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
   }
 
@@ -72,7 +77,8 @@ public class SimulationThread {
               lastSimTime = currentTime;
 
               simInterface.update(deltaTime);
-              simInterface.setInputVoltage(simVoltage.getAsDouble());
+              simInterface.setInputVoltage(
+                  negateOutput ? -simVoltage.getAsDouble() : simVoltage.getAsDouble());
               stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
             });
     simNotifier.setName(name);
