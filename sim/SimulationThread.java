@@ -7,7 +7,6 @@ import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.Timer;
 import java.util.function.BiConsumer;
 import java.util.function.DoubleSupplier;
-import lombok.Getter;
 
 public class SimulationThread {
 
@@ -18,7 +17,7 @@ public class SimulationThread {
 
   private double deltaTime;
 
-  @Getter private DoubleSupplier simVoltage = () -> 0.0;
+  private DoubleSupplier simVoltage = () -> 0.0;
 
   private BiConsumer<Double, Double> stateConsumer;
 
@@ -51,6 +50,10 @@ public class SimulationThread {
             limitVoltage
                 ? MathUtil.clamp(simVoltage.getAsDouble(), -12, 12)
                 : simVoltage.getAsDouble();
+  }
+
+  public DoubleSupplier getSimVoltage(){
+    return simVoltage;
   }
 
   public void update() {

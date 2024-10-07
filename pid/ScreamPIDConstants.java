@@ -5,7 +5,6 @@ import com.ctre.phoenix6.configs.Slot1Configs;
 import com.ctre.phoenix6.configs.Slot2Configs;
 import com.ctre.phoenix6.mechanisms.swerve.utility.PhoenixPIDController;
 import com.ctre.phoenix6.signals.GravityTypeValue;
-import com.pathplanner.lib.util.PIDConstants;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
@@ -232,10 +231,6 @@ public class ScreamPIDConstants implements Cloneable {
     config.kG = ffConstants.kG();
     config.kS = ffConstants.kS();
     return config;
-  }
-
-  public PIDConstants getPathPlannerPIDConstants() {
-    return new PIDConstants(kP, kI, kD, integralZone);
   }
 
   public PIDController getPIDController() {
