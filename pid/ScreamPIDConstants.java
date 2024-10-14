@@ -221,6 +221,10 @@ public class ScreamPIDConstants implements Cloneable {
     return config;
   }
 
+  public static ScreamPIDConstants fromSlot1Configs(Slot1Configs configs) {
+    return new ScreamPIDConstants(configs.kP, configs.kI, configs.kD);
+  }
+
   public Slot2Configs getSlot2Configs(FeedforwardConstants ffConstants) {
     Slot2Configs config = new Slot2Configs();
     config.kP = kP;
@@ -231,6 +235,10 @@ public class ScreamPIDConstants implements Cloneable {
     config.kG = ffConstants.kG();
     config.kS = ffConstants.kS();
     return config;
+  }
+
+  public static ScreamPIDConstants fromSlot2Configs(Slot2Configs configs) {
+    return new ScreamPIDConstants(configs.kP, configs.kI, configs.kD);
   }
 
   public PIDController getPIDController() {

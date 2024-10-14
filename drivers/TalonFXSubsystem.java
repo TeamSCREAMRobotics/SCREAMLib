@@ -287,16 +287,16 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   /**
    * Configures the master motor with the given configuration.
-   * 
+   *
    * @param config - The config to apply to the master.
    */
   public void configMaster(TalonFXConfiguration config) {
     DeviceConfig.configureTalonFX(constants.name + " Master", master, config);
   }
 
-    /**
+  /**
    * Configures a slave motor with the given configuration.
-   * 
+   *
    * @param slave - The slave to apply the config to.
    * @param config - The config to apply to the slave.
    */
@@ -306,6 +306,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   /**
    * Reconfigures the motors with the given stator current limits.
+   *
    * @param currentLimit - Stator current limit to apply.
    * @param enable - Whether the current limit should be enabled.
    */
@@ -320,6 +321,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   /**
    * Reconfigures the motors to enable soft limits.
+   *
    * @param enable - Whether the soft limits should be enabled.
    */
   public void enableSoftLimits(boolean enable) {
@@ -331,8 +333,9 @@ public class TalonFXSubsystem extends SubsystemBase {
         });
   }
 
-    /**
+  /**
    * Sets the neutral mode of the motors.
+   *
    * @param mode - The neutral mode to apply to the motors.
    */
   public void setNeutralMode(NeutralModeValue mode) {
@@ -711,7 +714,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     DogLog.log(logPrefix + "Control Mode", getControlMode().toString());
   }
 
-  public void emergencyStop(){
+  public void emergencyStop() {
     stop();
     setNeutralMode(NeutralModeValue.Coast);
     isEStopped = true;

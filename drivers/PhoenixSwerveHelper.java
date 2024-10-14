@@ -45,17 +45,17 @@ public class PhoenixSwerveHelper {
     fieldCentricFacingAngle =
         new FieldCentricFacingAngle()
             .withDeadband(maxSpeed * 0.05)
-            .withDriveRequestType(DriveRequestType.Velocity)
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
             .withSteerRequestType(SteerRequestType.MotionMagic);
     fieldCentric =
         new FieldCentric()
             .withDeadband(maxSpeed * 0.05)
-            .withDriveRequestType(DriveRequestType.Velocity)
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
             .withSteerRequestType(SteerRequestType.MotionMagic);
     robotCentric =
         new RobotCentric()
             .withDeadband(maxSpeed * 0.05)
-            .withDriveRequestType(DriveRequestType.Velocity)
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
             .withSteerRequestType(SteerRequestType.MotionMagic);
     applyChassisSpeeds =
         new ApplyChassisSpeeds()
@@ -82,6 +82,15 @@ public class PhoenixSwerveHelper {
         .withVelocityX(translation.getX())
         .withVelocityY(translation.getY())
         .withTargetDirection(targetAngle);
+  }
+
+  public SwerveRequest getFacingAngle(
+      Translation2d translation, Rotation2d targetAngle, ScreamPIDConstants headingConstants) {
+    return getFieldCentric(
+        translation,
+        headingConstants
+            .getPIDController()
+            .calculate(poseSup.get().getRotation().getRadians(), targetAngle.getRadians()));
   }
 
   public SwerveRequest getFacingAngleProfiled(

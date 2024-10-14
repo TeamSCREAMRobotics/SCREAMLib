@@ -2,8 +2,6 @@ package com.SCREAMLib.vision;
 
 import com.SCREAMLib.data.Length;
 import com.SCREAMLib.vision.LimelightHelpers.PoseEstimate;
-
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 
@@ -41,8 +39,10 @@ public class LimelightVision {
     return LimelightHelpers.getLatency_Capture(limelight.name);
   }
 
-  public static PoseEstimate getPoseEstimate_MT2(Limelight limelight, double robotHeadingDegrees, double yawRateDps){
-    LimelightHelpers.SetRobotOrientation(limelight.name, robotHeadingDegrees, yawRateDps, 0, 0, 0, 0);
+  public static PoseEstimate getPoseEstimate_MT2(
+      Limelight limelight, double robotHeadingDegrees, double yawRateDps) {
+    LimelightHelpers.SetRobotOrientation(
+        limelight.name, robotHeadingDegrees, yawRateDps, 0, 0, 0, 0);
     return LimelightHelpers.getBotPoseEstimate_wpiBlue(limelight.name);
   }
 
@@ -52,6 +52,11 @@ public class LimelightVision {
     double height_diff = targetHeight.getMeters() - limelight.relativePosition.getZ();
 
     return Length.fromMeters(height_diff / Math.tan(goal_theta));
+  }
+
+  public static Rotation2d getAngleToTargetTXBased(Limelight limelight) {
+    return Rotation2d.fromDegrees(
+        getTX(limelight) - Math.toDegrees(limelight.relativePosition.getZ()));
   }
 
   public static int getCurrentPipeline(Limelight limelight) {

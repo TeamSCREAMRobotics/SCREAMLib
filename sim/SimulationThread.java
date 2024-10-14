@@ -52,13 +52,14 @@ public class SimulationThread {
                 : simVoltage.getAsDouble();
   }
 
-  public DoubleSupplier getSimVoltage(){
+  public DoubleSupplier getSimVoltage() {
     return simVoltage;
   }
 
   public void update() {
     if (useSeparateThread) {
-      DriverStation.reportError("Simulation thread: " + name + " | Do not call update if using separate thread!", true);
+      DriverStation.reportError(
+          "Simulation thread: " + name + " | Do not call update if using separate thread!", true);
       return;
     }
     final double currentTime = Timer.getFPGATimestamp();

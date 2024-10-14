@@ -1,7 +1,5 @@
 package com.SCREAMLib.util;
 
-import com.pathplanner.lib.controllers.PPHolonomicDriveController;
-import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
@@ -70,16 +68,6 @@ public class ScreamUtil {
     return epsilonEquals(twist, other, EPSILON);
   }
 
-  public static PPHolonomicDriveController createHolonomicDriveController(
-      HolonomicPathFollowerConfig config) {
-    return new PPHolonomicDriveController(
-        config.translationConstants,
-        config.rotationConstants,
-        config.period,
-        config.maxModuleSpeed,
-        config.driveBaseRadius);
-  }
-
   public static boolean valueBetween(double value, double upper, double lower) {
     return value < upper && value > lower;
   }
@@ -88,5 +76,14 @@ public class ScreamUtil {
       Rotation2d targetAngle, Rotation2d currentAngle, Rotation2d threshold) {
     return MathUtil.isNear(
         targetAngle.getDegrees(), currentAngle.getDegrees(), threshold.getDegrees(), -180, 180);
+  }
+
+  public static double random(double lower, double upper) {
+    if (lower >= upper) {
+      double temp = upper;
+      upper = lower;
+      lower = temp;
+    }
+    return (Math.random() * (upper - lower + 1)) + lower;
   }
 }
