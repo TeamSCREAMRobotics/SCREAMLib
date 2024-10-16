@@ -56,7 +56,7 @@ public class LimelightVision {
 
   public static Rotation2d getAngleToTargetTXBased(Limelight limelight) {
     return Rotation2d.fromDegrees(
-        getTX(limelight) - Math.toDegrees(limelight.relativePosition.getZ()));
+        -getTX(limelight) - Math.toDegrees(limelight.relativePosition.getRotation().getZ()));
   }
 
   public static int getCurrentPipeline(Limelight limelight) {
@@ -83,5 +83,9 @@ public class LimelightVision {
 
   public static void setPipeline(int index, Limelight limelight) {
     LimelightHelpers.setPipelineIndex(limelight.name, index);
+  }
+
+  public static void setCropWindow(double cropXMin, double cropXMax, double cropYMin, double cropYMax, Limelight limelight){
+    LimelightHelpers.setCropWindow(limelight.name, cropXMin, cropXMax, cropYMin, cropYMax);
   }
 }
