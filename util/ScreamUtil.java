@@ -1,23 +1,13 @@
 package com.SCREAMLib.util;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 
 /** Various utility methods */
 public class ScreamUtil {
-  public static final Pose2d EMPTY_POSE2D = new Pose2d();
-  public static final Pose3d EMPTY_POSE3D = new Pose3d();
-  public static final Translation3d EMPTY_TRANSLATION3D = new Translation3d();
-  public static final Translation2d EMPTY_TRANSLATION2D = new Translation2d();
-  public static final Rotation3d EMPTY_ROT3D = new Rotation3d();
-  public static final Rotation2d EMPTY_ROT2D = new Rotation2d();
   public static final double EPSILON = 1e-3;
 
   public static Rotation2d boundRotation(Rotation2d rotation) {

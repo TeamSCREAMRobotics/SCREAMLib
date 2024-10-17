@@ -85,7 +85,8 @@ public class LimelightVision {
     LimelightHelpers.setPipelineIndex(limelight.name, index);
   }
 
-  public static void setCropWindow(double cropXMin, double cropXMax, double cropYMin, double cropYMax, Limelight limelight){
+  public static void setCropWindow(
+      double cropXMin, double cropXMax, double cropYMin, double cropYMax, Limelight limelight) {
     LimelightHelpers.setCropWindow(limelight.name, cropXMin, cropXMax, cropYMin, cropYMax);
   }
 }

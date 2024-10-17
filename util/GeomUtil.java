@@ -26,7 +26,7 @@ public class GeomUtil {
    * @return The resulting transform
    */
   public static Transform2d translationToTransform(Translation2d translation) {
-    return new Transform2d(translation, new Rotation2d());
+    return new Transform2d(translation, Rotation2d.kZero);
   }
 
   /**
@@ -37,7 +37,7 @@ public class GeomUtil {
    * @return The resulting transform
    */
   public static Transform2d translationToTransform(double x, double y) {
-    return new Transform2d(new Translation2d(x, y), new Rotation2d());
+    return new Transform2d(new Translation2d(x, y), Rotation2d.kZero);
   }
 
   /**
@@ -47,7 +47,7 @@ public class GeomUtil {
    * @return The resulting transform
    */
   public static Transform2d rotationToTransform(Rotation2d rotation) {
-    return new Transform2d(new Translation2d(), rotation);
+    return new Transform2d(Translation2d.kZero, rotation);
   }
 
   /**
@@ -78,7 +78,7 @@ public class GeomUtil {
    * @return The resulting pose
    */
   public static Pose2d translationToPose(Translation2d translation) {
-    return new Pose2d(translation, new Rotation2d());
+    return new Pose2d(translation, Rotation2d.kZero);
   }
 
   /**
@@ -88,7 +88,7 @@ public class GeomUtil {
    * @return The resulting pose
    */
   public static Pose2d rotationToPose(Rotation2d rotation) {
-    return new Pose2d(new Translation2d(), rotation);
+    return new Pose2d(Translation2d.kZero, rotation);
   }
 
   /**

@@ -24,11 +24,11 @@ public class Mechanism {
   private MechanismLigament2d setpointLig;
 
   private Supplier<Length> measuredLength = () -> new Length();
-  private Supplier<Rotation2d> measuredAngle = () -> new Rotation2d();
+  private Supplier<Rotation2d> measuredAngle = () -> Rotation2d.kZero;
   private Supplier<Length> setpointLength = () -> new Length();
-  private Supplier<Rotation2d> setpointAngle = () -> new Rotation2d();
+  private Supplier<Rotation2d> setpointAngle = () -> Rotation2d.kZero;
 
-  private Supplier<Translation2d> position = () -> new Translation2d();
+  private Supplier<Translation2d> position = () -> Translation2d.kZero;
 
   public Mechanism(String key) {
     this.key = key;

@@ -150,7 +150,7 @@ public class PhoenixSwerveHelper {
         .withVelocityX(translation.getX())
         .withVelocityY(translation.getY())
         .withRotationalRate(omega)
-        .withCenterOfRotation(new Translation2d());
+        .withCenterOfRotation(Translation2d.kZero);
   }
 
   public SwerveRequest getFieldCentric(Translation2d translation, double angularVelocity) {
@@ -158,7 +158,7 @@ public class PhoenixSwerveHelper {
         .withVelocityX(translation.getX())
         .withVelocityY(translation.getY())
         .withRotationalRate(angularVelocity)
-        .withCenterOfRotation(new Translation2d());
+        .withCenterOfRotation(Translation2d.kZero);
   }
 
   public SwerveRequest getFieldCentricCOR(
@@ -167,7 +167,7 @@ public class PhoenixSwerveHelper {
         .withVelocityX(translation.getX())
         .withVelocityY(translation.getY())
         .withRotationalRate(angularVelocity)
-        .withCenterOfRotation(new Translation2d());
+        .withCenterOfRotation(Translation2d.kZero);
   }
 
   public SwerveRequest getRobotCentric(Translation2d translation, double angularVelocity) {
@@ -175,7 +175,7 @@ public class PhoenixSwerveHelper {
         .withVelocityX(translation.getX())
         .withVelocityY(translation.getY())
         .withRotationalRate(angularVelocity)
-        .withCenterOfRotation(new Translation2d());
+        .withCenterOfRotation(Translation2d.kZero);
   }
 
   public SwerveRequest getRobotCentricCOR(

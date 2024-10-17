@@ -1,7 +1,11 @@
 package com.SCREAMLib.data;
 
-public class Length {
-  private double inches;
+import edu.wpi.first.util.struct.Struct;
+import edu.wpi.first.util.struct.StructSerializable;
+import java.nio.ByteBuffer;
+
+public class Length implements StructSerializable {
+  private final double inches;
 
   public Length() {
     this(0);
@@ -73,5 +77,49 @@ public class Length {
 
   public double getMeters() {
     return inches / 39.37;
+  }
+
+  public static final LengthStruct struct = new LengthStruct();
+
+  private static class LengthStruct implements Struct<Length> {
+
+    @Override
+    public Class<Length> getTypeClass() {
+      return Length.class;
+    }
+
+    @Override
+    public String getTypeName() {
+      return "Length";
+    }
+
+    @Override
+    public int getSize() {
+      return kSizeDouble * 4;
+    }
+
+    @Override
+    public String getSchema() {
+      return "double inches;double feet;double centimeters;double meters";
+    }
+
+    @Override
+    public Length unpack(ByteBuffer bb) {
+      double inches = bb.getDouble();
+      return new Length(inches);
+    }
+
+    @Override
+    public void pack(ByteBuffer bb, Length value) {
+      bb.putDouble(value.getInches());
+      bb.putDouble(value.getFeet());
+      bb.putDouble(value.getCentimeters());
+      bb.putDouble(value.getMeters());
+    }
+
+    @Override
+    public boolean isImmutable() {
+      return true;
+    }
   }
 }
