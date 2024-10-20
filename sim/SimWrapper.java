@@ -22,28 +22,28 @@ public class SimWrapper implements SimInterface {
 
   public SimWrapper(DCMotorSim sim) {
     updateConsumer = sim::update;
-    voltageConsumer = sim::setInputVoltage;
+    voltageConsumer = (value) -> sim.setInput(0, value);
     positionSupplier = sim::getAngularPositionRotations;
     velocitySupplier = sim::getAngularVelocityRPM;
   }
 
   public SimWrapper(ElevatorSim sim) {
     updateConsumer = sim::update;
-    voltageConsumer = sim::setInputVoltage;
+    voltageConsumer = (value) -> sim.setInput(0, value);
     positionSupplier = sim::getPositionMeters;
     velocitySupplier = sim::getVelocityMetersPerSecond;
   }
 
   public SimWrapper(SingleJointedArmSim sim) {
     updateConsumer = sim::update;
-    voltageConsumer = sim::setInputVoltage;
+    voltageConsumer = (value) -> sim.setInput(0, value);
     positionSupplier = () -> Units.radiansToRotations(sim.getAngleRads());
     velocitySupplier = () -> Units.radiansToRotations(sim.getVelocityRadPerSec());
   }
 
   public SimWrapper(FlywheelSim sim) {
     updateConsumer = sim::update;
-    voltageConsumer = sim::setInputVoltage;
+    voltageConsumer = (value) -> sim.setInput(0, value);
     positionSupplier = () -> 0.0;
     velocitySupplier = () -> (sim.getAngularVelocityRPM() / 60.0);
   }

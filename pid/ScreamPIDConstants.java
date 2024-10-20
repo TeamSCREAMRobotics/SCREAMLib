@@ -3,8 +3,8 @@ package com.SCREAMLib.pid;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.Slot1Configs;
 import com.ctre.phoenix6.configs.Slot2Configs;
-import com.ctre.phoenix6.mechanisms.swerve.utility.PhoenixPIDController;
 import com.ctre.phoenix6.signals.GravityTypeValue;
+import com.ctre.phoenix6.swerve.utility.PhoenixPIDController;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
@@ -245,12 +245,31 @@ public class ScreamPIDConstants implements Cloneable {
     return new PIDController(kP, kI, kD, period);
   }
 
+  public PIDController getPIDController(boolean continuousInput) {
+    PIDController controller = new PIDController(kP, kI, kD, period);
+    controller.enableContinuousInput(-Math.PI, Math.PI);
+    return controller;
+  }
+
   public ProfiledPIDController getProfiledPIDController(Constraints constraints) {
     return new ProfiledPIDController(kP, kI, kD, constraints, period);
   }
 
+  public ProfiledPIDController getProfiledPIDController(
+      Constraints constraints, boolean continuousInput) {
+    ProfiledPIDController controller = new ProfiledPIDController(kP, kI, kD, constraints, period);
+    controller.enableContinuousInput(-Math.PI, Math.PI);
+    return controller;
+  }
+
   public PhoenixPIDController getPhoenixPIDController() {
     return new PhoenixPIDController(kP, kI, kD);
+  }
+
+  public PhoenixPIDController getPhoenixPIDController(boolean continuousInput) {
+    PhoenixPIDController controller = new PhoenixPIDController(kP, kI, kD);
+    controller.enableContinuousInput(-Math.PI, Math.PI);
+    return controller;
   }
 
   public boolean equals(ScreamPIDConstants other) {

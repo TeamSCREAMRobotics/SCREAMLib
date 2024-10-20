@@ -20,7 +20,7 @@ public final class AllianceFlipUtil {
     return () -> DriverStation.getAlliance().filter(value -> value == Alliance.Red).isPresent();
   }
 
-  public static Rotation2d getForwardRotation() {
+  public static Rotation2d getFwdHeading() {
     return get(Rotation2d.fromDegrees(0), Rotation2d.fromDegrees(180));
   }
 

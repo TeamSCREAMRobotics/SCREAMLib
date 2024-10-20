@@ -144,27 +144,27 @@ public class DeviceConfig {
   }
 
   public static CurrentLimitsConfigs FXSupplyCurrentLimitsConfig(
-      boolean enable, double limit, double currentThreshold, double timeThreshold) {
+      boolean enable, double lowerLimit, double limit, double limitTime) {
     CurrentLimitsConfigs config = new CurrentLimitsConfigs();
     config.SupplyCurrentLimitEnable = enable;
+    config.SupplyCurrentLowerLimit = lowerLimit;
     config.SupplyCurrentLimit = limit;
-    config.SupplyCurrentThreshold = currentThreshold;
-    config.SupplyTimeThreshold = timeThreshold;
+    config.SupplyCurrentLowerTime = limitTime;
     return config;
   }
 
   public static CurrentLimitsConfigs FXCurrentLimitsConfig(
       boolean supplyEnable,
+      double supplyLowerLimit,
       double supplyLimit,
-      double supplyCurrentThreshold,
-      double supplyTimeThreshold,
+      double supplyLimitTime,
       boolean statorEnable,
       double statorLimit) {
     CurrentLimitsConfigs config = new CurrentLimitsConfigs();
     config.SupplyCurrentLimitEnable = supplyEnable;
+    config.SupplyCurrentLowerLimit = supplyLowerLimit;
     config.SupplyCurrentLimit = supplyLimit;
-    config.SupplyCurrentThreshold = supplyCurrentThreshold;
-    config.SupplyTimeThreshold = supplyTimeThreshold;
+    config.SupplyCurrentLowerTime = supplyLimitTime;
     config.StatorCurrentLimitEnable = statorEnable;
     config.StatorCurrentLimit = statorLimit;
     return config;

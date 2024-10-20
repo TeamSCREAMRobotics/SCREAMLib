@@ -31,6 +31,9 @@ import com.ctre.phoenix6.sim.TalonFXSimState;
 import dev.doglog.DogLog;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.units.Units;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -146,11 +149,11 @@ public class TalonFXSubsystem extends SubsystemBase {
   protected TalonFXConfiguration masterConfig;
   protected final TalonFXConfiguration[] slaveConfigs;
 
-  protected final StatusSignal<Double> masterPositionSignal;
-  protected final StatusSignal<Double> masterVelocitySignal;
+  protected final StatusSignal<Angle> masterPositionSignal;
+  protected final StatusSignal<AngularVelocity> masterVelocitySignal;
 
-  protected final StatusSignal<Double> masterRotorPositionSignal;
-  protected final StatusSignal<Double> masterRotorVelocitySignal;
+  protected final StatusSignal<Angle> masterRotorPositionSignal;
+  protected final StatusSignal<AngularVelocity> masterRotorVelocitySignal;
 
   protected final double forwardSoftLimitRotations;
   protected final double reverseSoftLimitRotations;
@@ -416,19 +419,19 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized double getRotorPosition() {
-    return masterRotorPositionSignal.asSupplier().get();
+    return masterRotorPositionSignal.asSupplier().get().in(Units.Rotations);
   }
 
   public synchronized double getPosition() {
-    return masterPositionSignal.asSupplier().get();
+    return masterPositionSignal.asSupplier().get().in(Units.Rotations);
   }
 
   public synchronized double getRotorVelocity() {
-    return masterRotorVelocitySignal.asSupplier().get();
+    return masterRotorVelocitySignal.asSupplier().get().in(Units.RotationsPerSecond);
   }
 
   public synchronized double getVelocity() {
-    return masterVelocitySignal.asSupplier().get();
+    return masterVelocitySignal.asSupplier().get().in(Units.RotationsPerSecond);
   }
 
   public synchronized TalonFXSimState getSimState() {
@@ -486,7 +489,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized boolean isActive() {
-    return Math.abs(masterRotorVelocitySignal.asSupplier().get()) > 0.0;
+    return Math.abs(getRotorVelocity()) > 0.0;
   }
 
   public synchronized Command applyGoal(TalonFXSubsystemGoal goal) {
@@ -555,7 +558,6 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized void setVoltage(double volts, double voltageFeedForward) {
-    inVelocityMode = false;
     if (shouldSimulate()) {
       simulationThread.setSimVoltage(() -> volts);
     }
@@ -683,7 +685,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     DogLog.log(logPrefix + "Goal", goal.toString());
     DogLog.log(logPrefix + "GoalTarget", goal.target().getAsDouble());
     DogLog.log(logPrefix + "Setpoint", setpoint);
-    DogLog.log(logPrefix + "Actual", inVelocityMode ? getVelocity() : getPosition());
+    DogLog.log(logPrefix + "Measured", inVelocityMode ? getVelocity() : getPosition());
     if (getCurrentCommand() != null) {
       DogLog.log(logPrefix + "ActiveCommand", getCurrentCommand().getName());
     }
@@ -718,6 +720,8 @@ public class TalonFXSubsystem extends SubsystemBase {
     stop();
     setNeutralMode(NeutralModeValue.Coast);
     isEStopped = true;
+    getCurrentCommand().cancel();
+    setVoltage(0);
   }
 
   public void stop() {
