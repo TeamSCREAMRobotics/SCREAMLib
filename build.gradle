@@ -1,44 +1,38 @@
 plugins {
     id 'java'
-    id "edu.wpi.first.GradleRIO" version "2025.1.1-beta-1"
+    id "edu.wpi.first.GradleRIO" version "latest.release"
     id 'maven-publish'
 }
 
 java {
-    toolchain{
-        languageVersion = JavaLanguageVersion.of(17)
-    }
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
 }
 
 allprojects {
     group = 'com.github.TeamSCREAMRobotics'
-    version = '2024.0.0'
+    version = '1.0.0'
 
     repositories {
         jcenter()
         mavenCentral()
         maven {url 'https://jitpack.io'}
+        maven { url "https://frcmaven.wpi.edu/artifactory/release" }
     }
-}
 
-dependencies {
-    annotationProcessor wpi.java.deps.wpilibAnnotations()
-    implementation wpi.java.deps.wpilib()
-    implementation wpi.java.vendor.java()
+    dependencies {
+        annotationProcessor wpi.java.deps.wpilibAnnotations()
+        implementation wpi.java.deps.wpilib()
+        implementation wpi.java.vendor.java()
 
-    nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)
-    nativeDebug wpi.java.vendor.jniDebug(wpi.platforms.desktop)
-    simulationDebug wpi.sim.enableDebug()
+        nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)
+        nativeDebug wpi.java.vendor.jniDebug(wpi.platforms.desktop)
+        simulationDebug wpi.sim.enableDebug()
 
-    nativeRelease wpi.java.deps.wpilibJniRelease(wpi.platforms.desktop)
-    nativeRelease wpi.java.vendor.jniRelease(wpi.platforms.desktop)
-    simulationRelease wpi.sim.enableRelease()
-}
-
-java {
-	withSourcesJar()
+        nativeRelease wpi.java.deps.wpilibJniRelease(wpi.platforms.desktop)
+        nativeRelease wpi.java.vendor.jniRelease(wpi.platforms.desktop)
+        simulationRelease wpi.sim.enableRelease()
+    }
 }
 
 publishing {

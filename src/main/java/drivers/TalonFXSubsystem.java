@@ -169,6 +169,18 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   protected final String logPrefix;
 
+  public static final TalonFXSubsystemGoal defaultGoal = new TalonFXSubsystemGoal() {
+    @Override
+    public DoubleSupplier target() {
+      return () -> 0.0;
+    }
+
+    @Override
+    public ControlType controlType() {
+      return ControlType.VOLTAGE;
+    }
+  };
+
   protected double setpoint = 0;
   public boolean inVelocityMode = false;
 
