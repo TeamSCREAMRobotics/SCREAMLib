@@ -1,34 +1,55 @@
 plugins {
-    id 'java-library'
+    id 'java'
+    id "edu.wpi.first.GradleRIO" version "2025.1.1-beta-1"
     id 'maven-publish'
 }
 
-group = 'com.github.TeamSCREAMRobotics'
-version = '1.0-SNAPSHOT' 
+java {
+    toolchain{
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 
-repositories {
-    mavenCentral()
-    maven { url 'https://jitpack.io' }
+allprojects {
+    group = 'com.github.TeamSCREAMRobotics'
+    version = '2024.0.0'
+
+    repositories {
+        jcenter()
+        mavenCentral()
+        maven {url 'https://jitpack.io'}
+    }
+}
+
+dependencies {
+    annotationProcessor wpi.java.deps.wpilibAnnotations()
+    implementation wpi.java.deps.wpilib()
+    implementation wpi.java.vendor.java()
+
+    nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)
+    nativeDebug wpi.java.vendor.jniDebug(wpi.platforms.desktop)
+    simulationDebug wpi.sim.enableDebug()
+
+    nativeRelease wpi.java.deps.wpilibJniRelease(wpi.platforms.desktop)
+    nativeRelease wpi.java.vendor.jniRelease(wpi.platforms.desktop)
+    simulationRelease wpi.sim.enableRelease()
 }
 
 java {
-    withSourcesJar()
-    withJavadocJar()
+	withSourcesJar()
 }
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
-            from components.java
+        maven(MavenPublication) {
+		    from components.java
         }
     }
 }
 
-jar {
-    manifest {
-        attributes(
-            'Implementation-Title': 'SCREAMLib',
-            'Implementation-Version': archiveVersion
-        )
-    }
+wrapper {
+    gradleVersion = "7.3.3"
+    distributionType = Wrapper.DistributionType.ALL
 }
