@@ -43,20 +43,69 @@ import com.ctre.phoenix6.sim.CANcoderSimState;
 import com.ctre.phoenix6.sim.ChassisReference;
 import com.ctre.phoenix6.sim.TalonFXSimState;
 
+/**
+ * Base class for TalonFX based subsystems.
+ * Defines subsystems as a set of motors on a mechanism that do the same thing. 
+ * This means that each DOF of a mechanism is represented as a separate subsystem.
+ * <p> Supports:
+ *  <ul>
+ *    <li> 1 master TalonFX
+ *    <li> Any number of slave TalonFXs
+ *    <li> 1 CANCoder (Complex systems with multiple CANCoders should be handled externally)
+ *    <li> Simple control requests -- both Motion Magic and non Motion Magic (Velocity, Position, Voltage, Duty Cycle)
+ *    <li> User-defined control requests
+ *    <li> Multi and single threaded simulation setup through configuration
+ *    <li> Logging with DogLog
+ */
 public class TalonFXSubsystem extends SubsystemBase {
 
+  /**
+     * Creates a new CANDevice.
+     *
+     * @param deviceId ID of the device.
+     * @param canbus   Name of the CAN bus this device is on. Possible CAN bus
+     *                 strings are:
+     *                 <ul>
+     *                   <li>"rio" for the native roboRIO CAN bus
+     *                   <li>CANivore name or serial number
+     *                   <li>SocketCAN interface (non-FRC Linux only)
+     *                   <li>"*" for any CANivore seen by the program
+     *                   <li>empty string (default) to select the default for the
+     *                       system:
+     *                   <ul>
+     *                     <li>"rio" on roboRIO
+     *                     <li>"can0" on Linux
+     *                     <li>"*" on Windows
+     *                   </ul>
+     *                 </ul>
+     */
   public static record CANDevice(Integer id, String canbus) {
     public CANDevice() {
       this(null, null);
     }
+    public CANDevice(Integer id){
+      this(id, "");
+    }
   }
 
+  /**
+   * Constants for a TalonFX motor controller.
+   * 
+   * @param device CANDevice constants.
+   * @param invert InvertedValue of the device.
+   */
   public static record TalonFXConstants(CANDevice device, InvertedValue invert) {
     public TalonFXConstants() {
       this(null, null);
     }
   }
 
+  /**
+   * Constants for a CANCoder.
+   * 
+   * @param device CANDevice constants.
+   * @param config Configuration for the device.
+   */
   public static record CANCoderConstants(CANDevice device, CANcoderConfiguration config) {}
 
   public interface TalonFXSubsystemGoal {
@@ -186,7 +235,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   protected boolean isEStopped = false;
 
-  protected TalonFXSubsystem(
+  public TalonFXSubsystem(
       final TalonFXSubsystemConstants constants, final TalonFXSubsystemGoal defaultGoal) {
     this.constants = constants;
     master =
@@ -553,14 +602,18 @@ public class TalonFXSubsystem extends SubsystemBase {
     }
   }
 
-  public synchronized Command runVoltage(DoubleSupplier voltage) {
-    return run(() -> setVoltage(voltage.getAsDouble())).withName("runVoltage");
+  public synchronized Command applyVoltage(DoubleSupplier voltage) {
+    return run(() -> setVoltage(voltage.getAsDouble())).withName("applyVoltage");
   }
 
-  public synchronized Command runVoltage(
+  public synchronized Command applyVoltage(
       DoubleSupplier voltage, DoubleSupplier voltageFeedforward) {
     return run(() -> setVoltage(voltage.getAsDouble(), voltageFeedforward.getAsDouble()))
-        .withName("runVoltage");
+        .withName("applyVoltage");
+  }
+
+  public synchronized Command applyControl(ControlRequest control){
+    return run(() -> setMaster(control)).withName("applyControl");
   }
 
   public synchronized void setDutyCycle(double dutyCycle, double dutyCycleFeedforward) {

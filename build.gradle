@@ -11,11 +11,11 @@ java {
 
 allprojects {
     group = 'com.github.TeamSCREAMRobotics'
-    version = '1.0.0'
+    version = 'local'
 
     repositories {
+        mavenLocal()
         jcenter()
-        mavenCentral()
         maven {url 'https://jitpack.io'}
         maven { url "https://frcmaven.wpi.edu/artifactory/release" }
     }
@@ -41,9 +41,14 @@ publishing {
 		    from components.java
         }
     }
+    repositories{
+        mavenLocal()
+    }
 }
 
 wrapper {
     gradleVersion = "7.3.3"
     distributionType = Wrapper.DistributionType.ALL
 }
+
+build.dependsOn(publishToMavenLocal)

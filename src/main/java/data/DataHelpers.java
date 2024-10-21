@@ -7,4 +7,6 @@ public class DataHelpers {
   }
 
   public record Dimensions(double height, double width) {}
+
+  public record LoggedOutput<T>(String key, T value){}
 }
