@@ -1,4 +1,6 @@
 # SCREAMLib
+[![](https://jitpack.io/v/TeamSCREAMRobotics/SCREAMLib.svg)](https://jitpack.io/#TeamSCREAMRobotics/SCREAMLib)
+
 Common code/libraries for robot projects
 
 To install the latest version of this library add the following to your ```build.gradle``` file:
