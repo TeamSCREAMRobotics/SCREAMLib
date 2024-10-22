@@ -134,7 +134,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     DUTY_CYCLE;
   }
 
-  public static class TalonFXSubsystemConstants {
+  public static class TalonFXSubsystemConfiguration {
     public String name = "ERROR_ASSIGN_A_NAME";
 
     public boolean codeEnabled = true;
@@ -183,7 +183,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     public double minUnitsLimit = -3.4e+38;
   }
 
-  protected final TalonFXSubsystemConstants constants;
+  protected final TalonFXSubsystemConfiguration config;
   protected final TalonFX master;
   protected final TalonFX[] slaves;
   protected CANcoder cancoder;
@@ -216,7 +216,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   protected final VelocityVoltage velocityRequest;
   protected final MotionMagicVelocityVoltage motionMagicVelocityRequest;
 
-  protected final String logPrefix;
+  public final String logPrefix;
 
   public static final TalonFXSubsystemGoal defaultGoal = new TalonFXSubsystemGoal() {
     @Override
@@ -236,72 +236,72 @@ public class TalonFXSubsystem extends SubsystemBase {
   protected boolean isEStopped = false;
 
   public TalonFXSubsystem(
-      final TalonFXSubsystemConstants constants, final TalonFXSubsystemGoal defaultGoal) {
-    this.constants = constants;
+      final TalonFXSubsystemConfiguration config, final TalonFXSubsystemGoal defaultGoal) {
+    this.config = config;
     master =
-        new TalonFX(constants.masterConstants.device.id, constants.masterConstants.device.canbus);
-    slaves = new TalonFX[constants.slaveConstants.length];
-    slaveConfigs = new TalonFXConfiguration[constants.slaveConstants.length];
-    if (constants.cancoderConstants != null) {
+        new TalonFX(config.masterConstants.device.id, config.masterConstants.device.canbus);
+    slaves = new TalonFX[config.slaveConstants.length];
+    slaveConfigs = new TalonFXConfiguration[config.slaveConstants.length];
+    if (config.cancoderConstants != null) {
       cancoder =
           new CANcoder(
-              constants.cancoderConstants.device.id, constants.cancoderConstants.device.canbus);
-      CANcoderConfiguration cancoderConfig = constants.cancoderConstants.config;
-      DeviceConfig.configureCANcoder(constants.name + " CANcoder", cancoder, cancoderConfig);
+              config.cancoderConstants.device.id, config.cancoderConstants.device.canbus);
+      CANcoderConfiguration cancoderConfig = config.cancoderConstants.config;
+      DeviceConfig.configureCANcoder(config.name + " CANcoder", cancoder, cancoderConfig);
     }
 
     goal = defaultGoal;
 
     masterConfig = new TalonFXConfiguration();
 
-    masterConfig.Feedback.FeedbackSensorSource = constants.feedbackSensorSource;
-    masterConfig.Feedback.FeedbackRemoteSensorID = constants.feedbackRemoteSensorId;
-    masterConfig.Feedback.FeedbackRotorOffset = constants.feedbackRotorOffset;
+    masterConfig.Feedback.FeedbackSensorSource = config.feedbackSensorSource;
+    masterConfig.Feedback.FeedbackRemoteSensorID = config.feedbackRemoteSensorId;
+    masterConfig.Feedback.FeedbackRotorOffset = config.feedbackRotorOffset;
 
-    forwardSoftLimitRotations = (constants.maxUnitsLimit - constants.softLimitDeadband);
+    forwardSoftLimitRotations = (config.maxUnitsLimit - config.softLimitDeadband);
     masterConfig.SoftwareLimitSwitch.ForwardSoftLimitThreshold = forwardSoftLimitRotations;
     masterConfig.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
 
-    reverseSoftLimitRotations = (constants.minUnitsLimit + constants.softLimitDeadband);
+    reverseSoftLimitRotations = (config.minUnitsLimit + config.softLimitDeadband);
     masterConfig.SoftwareLimitSwitch.ReverseSoftLimitThreshold = reverseSoftLimitRotations;
     masterConfig.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
 
-    masterConfig.Slot0 = constants.slot0;
-    masterConfig.Slot1 = constants.slot1;
-    masterConfig.Slot2 = constants.slot2;
+    masterConfig.Slot0 = config.slot0;
+    masterConfig.Slot1 = config.slot1;
+    masterConfig.Slot2 = config.slot2;
 
-    masterConfig.MotionMagic.MotionMagicCruiseVelocity = constants.cruiseVelocity;
-    masterConfig.MotionMagic.MotionMagicAcceleration = constants.acceleration;
-    masterConfig.MotionMagic.MotionMagicJerk = constants.jerk;
+    masterConfig.MotionMagic.MotionMagicCruiseVelocity = config.cruiseVelocity;
+    masterConfig.MotionMagic.MotionMagicAcceleration = config.acceleration;
+    masterConfig.MotionMagic.MotionMagicJerk = config.jerk;
 
-    masterConfig.OpenLoopRamps.DutyCycleOpenLoopRampPeriod = constants.rampRate;
-    masterConfig.OpenLoopRamps.VoltageOpenLoopRampPeriod = constants.rampRate;
-    masterConfig.OpenLoopRamps.TorqueOpenLoopRampPeriod = constants.rampRate;
+    masterConfig.OpenLoopRamps.DutyCycleOpenLoopRampPeriod = config.rampRate;
+    masterConfig.OpenLoopRamps.VoltageOpenLoopRampPeriod = config.rampRate;
+    masterConfig.OpenLoopRamps.TorqueOpenLoopRampPeriod = config.rampRate;
 
-    masterConfig.CurrentLimits.SupplyCurrentLimit = constants.supplyCurrentLimit;
-    masterConfig.CurrentLimits.SupplyCurrentLimitEnable = constants.enableSupplyCurrentLimit;
-    masterConfig.CurrentLimits.StatorCurrentLimit = constants.statorCurrentLimit;
-    masterConfig.CurrentLimits.StatorCurrentLimitEnable = constants.enableStatorCurrentLimit;
+    masterConfig.CurrentLimits.SupplyCurrentLimit = config.supplyCurrentLimit;
+    masterConfig.CurrentLimits.SupplyCurrentLimitEnable = config.enableSupplyCurrentLimit;
+    masterConfig.CurrentLimits.StatorCurrentLimit = config.statorCurrentLimit;
+    masterConfig.CurrentLimits.StatorCurrentLimitEnable = config.enableStatorCurrentLimit;
 
-    masterConfig.MotorOutput.Inverted = constants.masterConstants.invert;
-    masterConfig.Feedback.SensorToMechanismRatio = constants.sensorToMechRatio;
-    masterConfig.Feedback.RotorToSensorRatio = constants.rotorToSensorRatio;
-    masterConfig.MotorOutput.NeutralMode = constants.neutralMode;
+    masterConfig.MotorOutput.Inverted = config.masterConstants.invert;
+    masterConfig.Feedback.SensorToMechanismRatio = config.sensorToMechRatio;
+    masterConfig.Feedback.RotorToSensorRatio = config.rotorToSensorRatio;
+    masterConfig.MotorOutput.NeutralMode = config.neutralMode;
 
     for (int i = 0; i < slaves.length; ++i) {
       slaves[i] =
           new TalonFX(
-              constants.slaveConstants[i].device.id, constants.slaveConstants[i].device.canbus);
+              config.slaveConstants[i].device.id, config.slaveConstants[i].device.canbus);
 
       TalonFX slave = slaves[i];
       TalonFXConfiguration slaveConfig = new TalonFXConfiguration();
 
-      slaveConfig.MotorOutput.Inverted = constants.slaveConstants[i].invert;
-      slaveConfig.MotorOutput.NeutralMode = constants.neutralMode;
+      slaveConfig.MotorOutput.Inverted = config.slaveConstants[i].invert;
+      slaveConfig.MotorOutput.NeutralMode = config.neutralMode;
       slave.setControl(
           new Follower(
-              constants.masterConstants.device.id,
-              constants.slaveConstants[i].invert != constants.masterConstants.invert));
+              config.masterConstants.device.id,
+              config.slaveConstants[i].invert != config.masterConstants.invert));
 
       configSlave(slave, slaveConfig);
     }
@@ -327,37 +327,37 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     if (shouldSimulate()) {
       masterSimState = master.getSimState();
-      if (constants.cancoderConstants != null) {
+      if (config.cancoderConstants != null) {
         cancoderSimState = cancoder.getSimState();
       }
-      sim = constants.simConstants.sim();
+      sim = config.simConstants.sim();
       simulationThread =
           new SimulationThread(
-              constants.simConstants,
+              config.simConstants,
               this::setSimState,
-              constants.simPeriodSec,
-              constants.name + " Sim Thread");
-      simController = constants.simConstants.simController();
+              config.simPeriodSec,
+              config.name + " Sim Thread");
+      simController = config.simConstants.simController();
       masterSimState.Orientation =
-          constants.masterConstants.invert == InvertedValue.Clockwise_Positive
+          config.masterConstants.invert == InvertedValue.Clockwise_Positive
               ? ChassisReference.Clockwise_Positive
               : ChassisReference.CounterClockwise_Positive;
     }
 
     setDefaultCommand(applyGoal(goal));
 
-    logPrefix = "RobotState/Subsystems/" + constants.name + "/";
+    logPrefix = "RobotState/Subsystems/" + config.name + "/";
 
-    System.out.println("[Init] " + constants.name + " initialization complete!");
+    System.out.println("[Init] " + config.name + " initialization complete!");
   }
 
   /**
    * Configures the master motor with the given configuration.
    *
-   * @param config - The config to apply to the master.
+   * @param motorConfig - The config to apply to the master.
    */
-  public void configMaster(TalonFXConfiguration config) {
-    DeviceConfig.configureTalonFX(constants.name + " Master", master, config);
+  public void configMaster(TalonFXConfiguration motorConfig) {
+    DeviceConfig.configureTalonFX(config.name + " Master", master, motorConfig);
   }
 
   /**
@@ -366,8 +366,8 @@ public class TalonFXSubsystem extends SubsystemBase {
    * @param slave - The slave to apply the config to.
    * @param config - The config to apply to the slave.
    */
-  public void configSlave(TalonFX slave, TalonFXConfiguration config) {
-    DeviceConfig.configureTalonFX(constants.name + " Slave", slave, config);
+  public void configSlave(TalonFX slave, TalonFXConfiguration motorConfig) {
+    DeviceConfig.configureTalonFX(config.name + " Slave", slave, motorConfig);
   }
 
   /**
@@ -466,15 +466,15 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   private boolean shouldSimulate() {
-    if (constants.forceSimulation && constants.simConstants == null) {
+    if (config.forceSimulation && config.simConstants == null) {
       DriverStation.reportError(
           "Could not force simulation in "
-              + constants.name
+              + config.name
               + ", simulation constants were not provided",
           true);
       return false;
     }
-    return (Utils.isSimulation() && constants.simConstants != null) || constants.forceSimulation;
+    return (Utils.isSimulation() && config.simConstants != null) || config.forceSimulation;
   }
 
   public synchronized ControlModeValue getControlMode() {
@@ -547,8 +547,8 @@ public class TalonFXSubsystem extends SubsystemBase {
             ? goal.target().getAsDouble() - getVelocity()
             : goal.target().getAsDouble() - getPosition();
     return inVelocityMode
-        ? Math.abs(error) <= constants.velocityThreshold
-        : Math.abs(error) <= constants.positionThreshold;
+        ? Math.abs(error) <= config.velocityThreshold
+        : Math.abs(error) <= config.positionThreshold;
   }
 
   public synchronized boolean isActive() {
@@ -692,7 +692,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized void setMaster(ControlRequest control) {
-    if (constants.codeEnabled && !isEStopped) {
+    if (config.codeEnabled && !isEStopped) {
       master.setControl(control);
     }
   }
@@ -719,13 +719,13 @@ public class TalonFXSubsystem extends SubsystemBase {
    *     </ul>
    */
   public synchronized void setSimState(double position, double velocity) {
-    if (constants.codeEnabled && !isEStopped) {
-      if (constants.cancoderConstants != null) {
-        switch (constants.feedbackSensorSource) {
+    if (config.codeEnabled && !isEStopped) {
+      if (config.cancoderConstants != null) {
+        switch (config.feedbackSensorSource) {
           case FusedCANcoder:
           case RemoteCANcoder:
             cancoderSimState.setRawPosition(
-                position / constants.rotorToSensorRatio * constants.sensorToMechRatio);
+                position / config.rotorToSensorRatio * config.sensorToMechRatio);
             break;
           case SyncCANcoder:
           case RotorSensor:
@@ -746,7 +746,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
-    if (constants.logTelemetry) {
+    if (config.logTelemetry) {
       outputTelemetry();
     }
     DogLog.log(logPrefix + "Goal", goal.toString());
@@ -760,7 +760,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   @Override
   public void simulationPeriodic() {
-    if (constants.simConstants != null && !constants.simConstants.useSeparateThread()) {
+    if (config.simConstants != null && !config.simConstants.useSeparateThread()) {
       simulationThread.update();
     }
   }
