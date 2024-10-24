@@ -50,8 +50,7 @@ public class PhoenixSwerveHelper {
         new FieldCentric()
             .withDeadband(maxSpeed * 0.05)
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
-            .withSteerRequestType(SteerRequestType.MotionMagicExpo)
-            .withDesaturateWheelSpeeds(true);
+            .withSteerRequestType(SteerRequestType.MotionMagicExpo);
     robotCentric =
         new RobotCentric()
             .withDeadband(maxSpeed * 0.05)

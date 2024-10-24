@@ -2,7 +2,6 @@ package drivers;
 
 import config.DeviceConfig;
 import dev.doglog.DogLog;
-import drivers.TalonFXSubsystem.ControlType;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.units.Units;
@@ -140,6 +139,8 @@ public class TalonFXSubsystem extends SubsystemBase {
     public boolean codeEnabled = true;
     public boolean forceSimulation = false;
     public boolean logTelemetry = false;
+
+    public String logPrefix = null;
 
     public double loopPeriodSec = 0.02;
     public double simPeriodSec = 0.001;
@@ -346,7 +347,12 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     setDefaultCommand(applyGoal(goal));
 
-    logPrefix = "RobotState/Subsystems/" + config.name + "/";
+    if(config.logPrefix == null){
+      config.logPrefix = "RobotState/Subsystems/" + config.name + "/";
+      logPrefix = config.logPrefix;
+    } else {
+      logPrefix = config.logPrefix;
+    }
 
     System.out.println("[Init] " + config.name + " initialization complete!");
   }
