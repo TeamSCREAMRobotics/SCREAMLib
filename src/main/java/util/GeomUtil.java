@@ -147,4 +147,23 @@ public class GeomUtil {
     return new Pose3d(
         new Translation3d(translation.getX(), translation.getY(), z), new Rotation3d());
   }
+
+  public static Translation2d normalize(Translation2d translation){
+    return new Translation2d(1, translation.getAngle());
+  }
+
+  public static Translation2d findClosest(Translation2d origin, Translation2d... others){
+    Translation2d closest = null;
+    double smallestDistance = Double.MAX_VALUE;
+
+    for(Translation2d point : others){
+      double distance = origin.getDistance(point);
+      if(distance < smallestDistance){
+        smallestDistance = distance;
+        closest = point;
+      }
+    }
+
+    return closest;
+  }
 }

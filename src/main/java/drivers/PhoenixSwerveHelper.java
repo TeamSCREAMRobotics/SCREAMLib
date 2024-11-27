@@ -6,7 +6,10 @@ import util.AllianceFlipUtil;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveModule.SteerRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest.ApplyChassisSpeeds;
+import com.ctre.phoenix6.swerve.SwerveRequest.ApplyFieldSpeeds;
+import com.ctre.phoenix6.swerve.SwerveRequest.ApplyRobotSpeeds;
 import com.ctre.phoenix6.swerve.SwerveRequest.FieldCentric;
+import com.ctre.phoenix6.swerve.SwerveRequest.FieldCentricFacingAngle;
 import com.ctre.phoenix6.swerve.SwerveRequest.RobotCentric;
 import com.ctre.phoenix6.swerve.utility.PhoenixPIDController;
 import edu.wpi.first.math.controller.PIDController;
@@ -25,10 +28,10 @@ public class PhoenixSwerveHelper {
   private final PhoenixPIDController snapController;
   private final PIDController headingCorrectionController;
 
-  // private final FieldCentricFacingAngle fieldCentricFacingAngle;
+  private final FieldCentricFacingAngle fieldCentricFacingAngle;
   private final FieldCentric fieldCentric;
   private final RobotCentric robotCentric;
-  private final ApplyChassisSpeeds applyChassisSpeeds;
+  private final ApplyRobotSpeeds applyRobotSpeeds;
 
   private final Supplier<Pose2d> poseSup;
   private final double MAX_SPEED;
@@ -41,11 +44,11 @@ public class PhoenixSwerveHelper {
       double maxSpeed,
       ScreamPIDConstants snapConstants,
       ScreamPIDConstants headingCorrectionConstants) {
-    /*     fieldCentricFacingAngle =
+    fieldCentricFacingAngle =
     new FieldCentricFacingAngle()
         .withDeadband(maxSpeed * 0.05)
-        .withDriveRequestType(com.ctre.phoenix6.mechanisms.swerve.LegacySwerveModule.DriveRequestType.OpenLoopVoltage)
-        .withSteerRequestType(com.ctre.phoenix6.mechanisms.swerve.LegacySwerveModule.SteerRequestType.MotionMagic); */
+        .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
+            .withSteerRequestType(SteerRequestType.MotionMagicExpo);
     fieldCentric =
         new FieldCentric()
             .withDeadband(maxSpeed * 0.05)
@@ -56,14 +59,14 @@ public class PhoenixSwerveHelper {
             .withDeadband(maxSpeed * 0.05)
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
             .withSteerRequestType(SteerRequestType.MotionMagicExpo);
-    applyChassisSpeeds =
-        new ApplyChassisSpeeds()
+    applyRobotSpeeds =
+        new ApplyRobotSpeeds()
             .withDriveRequestType(DriveRequestType.Velocity)
             .withSteerRequestType(SteerRequestType.MotionMagicExpo);
 
     this.snapController = snapConstants.getPhoenixPIDController(true);
-    /* fieldCentricFacingAngle.HeadingController = snapController;
-    fieldCentricFacingAngle.HeadingController.enableContinuousInput(-Math.PI, Math.PI); */
+    fieldCentricFacingAngle.HeadingController = snapController;
+    fieldCentricFacingAngle.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
 
     this.headingCorrectionController = headingCorrectionConstants.getPIDController(true);
 
@@ -75,17 +78,11 @@ public class PhoenixSwerveHelper {
     lastAngle = angle;
   }
 
-  public FieldCentric getFacingAngle(Translation2d translation, Rotation2d targetAngle) {
-    /* return fieldCentricFacingAngle
+  public FieldCentricFacingAngle getFacingAngle(Translation2d translation, Rotation2d targetAngle) {
+    return fieldCentricFacingAngle
     .withVelocityX(translation.getX())
     .withVelocityY(translation.getY())
-    .withTargetDirection(targetAngle); */
-    return getFieldCentric(
-        translation,
-        snapController.calculate(
-            poseSup.get().getRotation().getRadians(),
-            targetAngle.getRadians(),
-            Timer.getFPGATimestamp()));
+    .withTargetDirection(targetAngle);
   }
 
   public FieldCentric getFacingAngle(
@@ -104,7 +101,7 @@ public class PhoenixSwerveHelper {
         profile.calculate(poseSup.get().getRotation().getRadians(), targetAngle.getRadians()));
   }
 
-  public FieldCentric getFacingAngleCOR(
+  public FieldCentricFacingAngle getFacingAngleCOR(
       Translation2d translation, Rotation2d targetAngle, Translation2d centerOfRotation) {
     return getFacingAngle(translation, targetAngle);
   }
@@ -120,14 +117,17 @@ public class PhoenixSwerveHelper {
         centerOfRotation);
   }
 
-  public FieldCentric getPointingAt(
-      Translation2d translation, Translation2d targetPoint, boolean facingBackwards) {
+  public FieldCentricFacingAngle getPointingAt(
+      Translation2d translation, Translation2d targetPoint) {
+    return getPointingAt(translation, targetPoint, Rotation2d.kZero);
+  }
+
+  public FieldCentricFacingAngle getPointingAt(
+      Translation2d translation, Translation2d targetPoint, Rotation2d offset) {
     return getFacingAngle(
         translation,
-        facingBackwards
-            ? ScreamMath.calculateAngleToPoint(poseSup.get().getTranslation(), targetPoint)
-                .minus(new Rotation2d(Math.PI))
-            : ScreamMath.calculateAngleToPoint(poseSup.get().getTranslation(), targetPoint));
+        ScreamMath.calculateAngleToPoint(poseSup.get().getTranslation(), targetPoint)
+                .plus(offset));
   }
 
   public FieldCentric getHeadingCorrectedFieldCentric(
@@ -182,12 +182,12 @@ public class PhoenixSwerveHelper {
         .withCenterOfRotation(centerOfRotation);
   }
 
-  public ApplyChassisSpeeds getApplyChassisSpeeds(ChassisSpeeds chassisSpeeds) {
-    return applyChassisSpeeds.withSpeeds(chassisSpeeds);
+  public ApplyRobotSpeeds getApplyRobotSpeeds(ChassisSpeeds chassisSpeeds) {
+    return applyRobotSpeeds.withSpeeds(chassisSpeeds);
   }
 
-  public ApplyChassisSpeeds getApplyChassisSpeedsCOR(
+  public ApplyRobotSpeeds getApplyRobotSpeedsCOR(
       ChassisSpeeds chassisSpeeds, Translation2d centerOfRotation) {
-    return applyChassisSpeeds.withSpeeds(chassisSpeeds).withCenterOfRotation(centerOfRotation);
+    return getApplyRobotSpeeds(chassisSpeeds).withCenterOfRotation(centerOfRotation);
   }
 }

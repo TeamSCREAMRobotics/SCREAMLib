@@ -59,4 +59,8 @@ public class ScreamMath {
     return Rotation2d.fromRadians(
         MathUtil.clamp(rotation.getRadians(), low.getRadians(), high.getRadians()));
   }
+
+  public static double square(double n){
+    return Math.pow(n, 2);
+  }
 }

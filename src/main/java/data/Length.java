@@ -5,6 +5,9 @@ import edu.wpi.first.util.struct.StructSerializable;
 import java.nio.ByteBuffer;
 
 public class Length implements StructSerializable {
+
+  public static final Length kZero = new Length();
+
   private final double inches;
 
   public Length() {
@@ -77,6 +80,11 @@ public class Length implements StructSerializable {
 
   public double getMeters() {
     return inches / 39.37;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+      return this.inches == ((Length)obj).inches;
   }
 
   public static final LengthStruct struct = new LengthStruct();

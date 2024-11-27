@@ -21,7 +21,7 @@ public final class AllianceFlipUtil {
   }
 
   public static Rotation2d getFwdHeading() {
-    return get(Rotation2d.fromDegrees(0), Rotation2d.fromDegrees(180));
+    return get(Rotation2d.kZero, Rotation2d.k180deg);
   }
 
   public static int getDirectionCoefficient() {
@@ -39,7 +39,7 @@ public final class AllianceFlipUtil {
   }
 
   public static Rotation2d MirroredRotation2d(Rotation2d blueValue) {
-    return get(blueValue, new Rotation2d(Math.PI).minus(blueValue));
+    return get(blueValue, Rotation2d.k180deg.minus(blueValue));
   }
 
   public static Rotation3d MirroredRotation3d(Rotation3d blueValue) {
