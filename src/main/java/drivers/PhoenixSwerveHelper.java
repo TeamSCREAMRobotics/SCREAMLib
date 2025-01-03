@@ -5,8 +5,6 @@ import pid.ScreamPIDConstants;
 import util.AllianceFlipUtil;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveModule.SteerRequestType;
-import com.ctre.phoenix6.swerve.SwerveRequest.ApplyChassisSpeeds;
-import com.ctre.phoenix6.swerve.SwerveRequest.ApplyFieldSpeeds;
 import com.ctre.phoenix6.swerve.SwerveRequest.ApplyRobotSpeeds;
 import com.ctre.phoenix6.swerve.SwerveRequest.FieldCentric;
 import com.ctre.phoenix6.swerve.SwerveRequest.FieldCentricFacingAngle;
@@ -20,7 +18,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.wpilibj.Timer;
 import java.util.function.Supplier;
 
 public class PhoenixSwerveHelper {
@@ -34,7 +31,6 @@ public class PhoenixSwerveHelper {
   private final ApplyRobotSpeeds applyRobotSpeeds;
 
   private final Supplier<Pose2d> poseSup;
-  private final double MAX_SPEED;
 
   private Debouncer correctionDebouncer = new Debouncer(0.2, DebounceType.kRising);
   private Rotation2d lastAngle = AllianceFlipUtil.getFwdHeading();
@@ -71,7 +67,6 @@ public class PhoenixSwerveHelper {
     this.headingCorrectionController = headingCorrectionConstants.getPIDController(true);
 
     this.poseSup = poseSup;
-    this.MAX_SPEED = maxSpeed;
   }
 
   public void setLastAngle(Rotation2d angle) {
