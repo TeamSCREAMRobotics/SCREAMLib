@@ -162,6 +162,8 @@ public class TalonFXSubsystem extends SubsystemBase {
     public double velocityThreshold = 0; // rps
     public double positionThreshold = 0; // rotations
 
+    public boolean continuousWrap = false;
+
     public Slot0Configs slot0 = new Slot0Configs();
     public Slot1Configs slot1 = new Slot1Configs();
     public Slot2Configs slot2 = new Slot2Configs();
@@ -258,6 +260,8 @@ public class TalonFXSubsystem extends SubsystemBase {
     masterConfig.Feedback.FeedbackSensorSource = config.feedbackSensorSource;
     masterConfig.Feedback.FeedbackRemoteSensorID = config.feedbackRemoteSensorId;
     masterConfig.Feedback.FeedbackRotorOffset = config.feedbackRotorOffset;
+
+    masterConfig.ClosedLoopGeneral.ContinuousWrap = config.continuousWrap;
 
     forwardSoftLimitRotations = (config.maxUnitsLimit - config.softLimitDeadband);
     masterConfig.SoftwareLimitSwitch.ForwardSoftLimitThreshold = forwardSoftLimitRotations;

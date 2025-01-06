@@ -5,6 +5,7 @@ import pid.ScreamPIDConstants;
 import util.AllianceFlipUtil;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveModule.SteerRequestType;
+import com.ctre.phoenix6.swerve.SwerveRequest.ApplyFieldSpeeds;
 import com.ctre.phoenix6.swerve.SwerveRequest.ApplyRobotSpeeds;
 import com.ctre.phoenix6.swerve.SwerveRequest.FieldCentric;
 import com.ctre.phoenix6.swerve.SwerveRequest.FieldCentricFacingAngle;
@@ -29,6 +30,8 @@ public class PhoenixSwerveHelper {
   private final FieldCentric fieldCentric;
   private final RobotCentric robotCentric;
   private final ApplyRobotSpeeds applyRobotSpeeds;
+
+  private final ApplyFieldSpeeds applyFieldSpeeds;
 
   private final Supplier<Pose2d> poseSup;
 
@@ -57,6 +60,10 @@ public class PhoenixSwerveHelper {
             .withSteerRequestType(SteerRequestType.MotionMagicExpo);
     applyRobotSpeeds =
         new ApplyRobotSpeeds()
+            .withDriveRequestType(DriveRequestType.Velocity)
+            .withSteerRequestType(SteerRequestType.MotionMagicExpo);
+    applyFieldSpeeds =
+        new ApplyFieldSpeeds()
             .withDriveRequestType(DriveRequestType.Velocity)
             .withSteerRequestType(SteerRequestType.MotionMagicExpo);
 
@@ -184,5 +191,13 @@ public class PhoenixSwerveHelper {
   public ApplyRobotSpeeds getApplyRobotSpeedsCOR(
       ChassisSpeeds chassisSpeeds, Translation2d centerOfRotation) {
     return getApplyRobotSpeeds(chassisSpeeds).withCenterOfRotation(centerOfRotation);
+  }
+
+  public ApplyFieldSpeeds getApplyFieldSpeeds(ChassisSpeeds chassisSpeeds) {
+    return applyFieldSpeeds.withSpeeds(chassisSpeeds);
+  }
+
+  public ApplyFieldSpeeds getApplyFieldSpeedsCOR(ChassisSpeeds chassisSpeeds, Translation2d centerOfRotation) {
+    return getApplyFieldSpeeds(chassisSpeeds).withCenterOfRotation(centerOfRotation);
   }
 }
