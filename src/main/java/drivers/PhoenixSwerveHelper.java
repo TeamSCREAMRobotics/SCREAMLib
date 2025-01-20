@@ -67,11 +67,11 @@ public class PhoenixSwerveHelper {
             .withDriveRequestType(DriveRequestType.Velocity)
             .withSteerRequestType(SteerRequestType.MotionMagicExpo);
 
-    this.snapController = snapConstants.getPhoenixPIDController(true);
+    this.snapController = snapConstants.getPhoenixPIDController(-Math.PI, Math.PI);
     fieldCentricFacingAngle.HeadingController = snapController;
     fieldCentricFacingAngle.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
 
-    this.headingCorrectionController = headingCorrectionConstants.getPIDController(true);
+    this.headingCorrectionController = headingCorrectionConstants.getPIDController(-Math.PI, Math.PI);
 
     this.poseSup = poseSup;
   }

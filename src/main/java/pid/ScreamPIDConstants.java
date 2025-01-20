@@ -245,9 +245,9 @@ public class ScreamPIDConstants implements Cloneable {
     return new PIDController(kP, kI, kD, period);
   }
 
-  public PIDController getPIDController(boolean continuousInput) {
+  public PIDController getPIDController(double minInput, double maxInput) {
     PIDController controller = new PIDController(kP, kI, kD, period);
-    controller.enableContinuousInput(-Math.PI, Math.PI);
+    controller.enableContinuousInput(minInput, maxInput);
     return controller;
   }
 
@@ -266,9 +266,9 @@ public class ScreamPIDConstants implements Cloneable {
     return new PhoenixPIDController(kP, kI, kD);
   }
 
-  public PhoenixPIDController getPhoenixPIDController(boolean continuousInput) {
+  public PhoenixPIDController getPhoenixPIDController(double minInput, double maxInput) {
     PhoenixPIDController controller = new PhoenixPIDController(kP, kI, kD);
-    controller.enableContinuousInput(-Math.PI, Math.PI);
+    controller.enableContinuousInput(minInput, maxInput);
     return controller;
   }
 
