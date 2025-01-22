@@ -3,10 +3,13 @@ package drivers;
 import config.DeviceConfig;
 import dev.doglog.DogLog;
 import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.units.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -115,12 +118,12 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   public record TalonFXSubsystemSimConstants(
       SimWrapper sim,
-      PIDController simController,
+      ProfiledPIDController simController,
       boolean useSeparateThread,
       boolean limitVoltage,
       boolean negateOutput) {
     public TalonFXSubsystemSimConstants(SimWrapper sim, PIDController simController) {
-      this(sim, simController, false, true, false);
+      this(sim, new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(9999999, 9999999)), false, true, false);
     }
   }
 
@@ -197,7 +200,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   protected CANcoderSimState cancoderSimState;
   protected SimWrapper sim;
   protected SimulationThread simulationThread;
-  protected PIDController simController;
+  protected ProfiledPIDController simController;
   protected DoubleSupplier simFeedforwardSup;
 
   protected TalonFXConfiguration masterConfig;
@@ -504,7 +507,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized double getVelocity() {
-    return masterVelocitySignal.asSupplier().get().in(Units.RotationsPerSecond);
+    return shouldSimulate() ? getRotorVelocity() / (config.sensorToMechRatio * config.rotorToSensorRatio) : masterVelocitySignal.asSupplier().get().in(Units.RotationsPerSecond);
   }
 
   public synchronized TalonFXSimState getSimState() {
@@ -598,14 +601,14 @@ public class TalonFXSubsystem extends SubsystemBase {
     if (shouldSimulate()) {
       return command
           .beforeStarting(
-              () ->
+              () -> {
                   simulationThread.setSimVoltage(
                       goal.controlType() == ControlType.VOLTAGE
                           ? goal.target()
                           : goal.controlType() == ControlType.DUTY_CYCLE
                               ? () -> goal.target().getAsDouble() * 12.0
-                              : () -> getSimControllerOutput()))
-          .finallyDo(() -> simController.reset())
+                              : () -> getSimControllerOutput());
+                  simController.reset(getPosition(), getVelocity());})
           .withName("applyGoal(" + goal.toString() + ")");
     } else {
       return command.withName("applyGoal(" + goal.toString() + ")");

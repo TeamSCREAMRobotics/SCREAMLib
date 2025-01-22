@@ -1,10 +1,14 @@
 package math;
 
+import data.Length;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.units.Units;
+import edu.wpi.first.units.measure.Mass;
+import edu.wpi.first.units.measure.MomentOfInertia;
 
 public class ScreamMath {
 
@@ -62,5 +66,9 @@ public class ScreamMath {
 
   public static double square(double n){
     return Math.pow(n, 2);
+  }
+
+  public static MomentOfInertia parallelAxisTheorem(MomentOfInertia moi, Mass mass, Length distance){
+    return Units.KilogramSquareMeters.of(moi.in(Units.KilogramSquareMeters) * mass.times(distance.squared().getMeters()).in(Units.Kilograms));
   }
 }

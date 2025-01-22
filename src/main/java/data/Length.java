@@ -66,6 +66,10 @@ public class Length implements StructSerializable {
     return new Length(this.inches / scalar.inches);
   }
 
+  public Length squared(){
+    return new Length(this.inches * this.inches);
+  }
+
   public double getInches() {
     return inches;
   }

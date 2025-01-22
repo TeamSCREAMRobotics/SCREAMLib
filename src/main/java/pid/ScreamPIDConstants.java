@@ -256,9 +256,9 @@ public class ScreamPIDConstants implements Cloneable {
   }
 
   public ProfiledPIDController getProfiledPIDController(
-      Constraints constraints, boolean continuousInput) {
+      Constraints constraints, double minInput, double maxInput) {
     ProfiledPIDController controller = new ProfiledPIDController(kP, kI, kD, constraints, period);
-    controller.enableContinuousInput(-Math.PI, Math.PI);
+    controller.enableContinuousInput(minInput, maxInput);
     return controller;
   }
 
