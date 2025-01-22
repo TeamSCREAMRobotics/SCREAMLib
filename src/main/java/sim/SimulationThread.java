@@ -26,6 +26,7 @@ public class SimulationThread {
 
   private double periodSec;
   private boolean limitVoltage;
+  private boolean negateOutput;
 
   public SimulationThread(
       TalonFXSubsystemSimConstants constants,
@@ -36,6 +37,7 @@ public class SimulationThread {
     this.simInterface = constants.sim();
     this.useSeparateThread = constants.useSeparateThread();
     this.limitVoltage = constants.limitVoltage();
+    this.negateOutput = constants.negateOutput();
     this.stateConsumer = stateConsumer;
     this.periodSec = periodSec;
     if (useSeparateThread) {
@@ -66,7 +68,8 @@ public class SimulationThread {
     lastSimTime = currentTime;
 
     simInterface.update(deltaTime);
-    simInterface.setInputVoltage(simVoltage.getAsDouble());
+    simInterface.setInputVoltage(
+        negateOutput ? -simVoltage.getAsDouble() : simVoltage.getAsDouble());
     stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
   }
 
@@ -79,7 +82,8 @@ public class SimulationThread {
               lastSimTime = currentTime;
 
               simInterface.update(deltaTime);
-              simInterface.setInputVoltage(simVoltage.getAsDouble());
+              simInterface.setInputVoltage(
+                  negateOutput ? -simVoltage.getAsDouble() : simVoltage.getAsDouble());
               stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
             });
     simNotifier.setName(name);

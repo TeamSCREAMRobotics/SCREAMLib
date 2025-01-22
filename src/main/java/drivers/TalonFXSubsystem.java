@@ -118,9 +118,9 @@ public class TalonFXSubsystem extends SubsystemBase {
       PIDController simController,
       boolean useSeparateThread,
       boolean limitVoltage,
-      ChassisReference orientation) {
+      boolean negateOutput) {
     public TalonFXSubsystemSimConstants(SimWrapper sim, PIDController simController) {
-      this(sim, simController, false, true, ChassisReference.Clockwise_Positive);
+      this(sim, simController, false, true, false);
     }
   }
 
@@ -343,7 +343,10 @@ public class TalonFXSubsystem extends SubsystemBase {
               config.simPeriodSec,
               config.name + " Sim Thread");
       simController = config.simConstants.simController();
-      masterSimState.Orientation = config.simConstants.orientation;
+      masterSimState.Orientation =
+          config.masterConstants.invert == InvertedValue.Clockwise_Positive
+              ? ChassisReference.Clockwise_Positive
+              : ChassisReference.CounterClockwise_Positive;
     }
 
     setDefaultCommand(applyGoal(goal));
