@@ -12,6 +12,7 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import pid.ScreamPIDConstants.MotionMagicConstants;
@@ -142,6 +143,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     public boolean codeEnabled = true;
     public boolean forceSimulation = false;
     public boolean logTelemetry = false;
+    public boolean debugMode = false;
 
     public String logPrefix = null;
 
@@ -359,6 +361,14 @@ public class TalonFXSubsystem extends SubsystemBase {
       logPrefix = config.logPrefix;
     } else {
       logPrefix = config.logPrefix;
+    }
+
+    if(config.debugMode && shouldSimulate()){
+      SmartDashboard.putNumber(config.name + " kP", simController.getP());
+      SmartDashboard.putNumber(config.name + " kI", simController.getI());
+      SmartDashboard.putNumber(config.name + " kD", simController.getD());
+      SmartDashboard.putNumber(config.name + " Velocity", simController.getConstraints().maxVelocity); 
+      SmartDashboard.putNumber(config.name + " Acceleration", simController.getConstraints().maxAcceleration);
     }
 
     System.out.println("[Init] " + config.name + " initialization complete!");
@@ -768,6 +778,12 @@ public class TalonFXSubsystem extends SubsystemBase {
     DogLog.log(logPrefix + "Measured", inVelocityMode ? getVelocity() : getPosition());
     if (getCurrentCommand() != null) {
       DogLog.log(logPrefix + "ActiveCommand", getCurrentCommand().getName());
+    }
+    if(config.debugMode && shouldSimulate()){
+      simController.setP(SmartDashboard.getNumber(config.name + " kP", simController.getP()));
+      simController.setI(SmartDashboard.getNumber(config.name + " kI", simController.getI()));
+      simController.setD(SmartDashboard.getNumber(config.name + " kD", simController.getD()));
+      simController.setConstraints(new Constraints(SmartDashboard.getNumber(config.name + " Velocity", simController.getConstraints().maxVelocity), SmartDashboard.getNumber(config.name + " Acceleration", simController.getConstraints().maxAcceleration)));
     }
   }
 
