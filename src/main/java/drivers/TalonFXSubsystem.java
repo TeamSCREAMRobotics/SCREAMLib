@@ -14,6 +14,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import pid.ScreamPIDConstants.MotionMagicConstants;
 import sim.SimWrapper;
@@ -154,6 +155,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     public boolean forceSimulation = false;
     public boolean logTelemetry = false;
     public boolean debugMode = false;
+    public boolean useCustomSimCallback = false;
 
     public String logPrefix = null;
 
@@ -584,12 +586,23 @@ public class TalonFXSubsystem extends SubsystemBase {
         : Math.abs(error) <= config.positionThreshold;
   }
 
+  public synchronized boolean atGoal(double absTolerance) {
+    double error =
+        inVelocityMode
+            ? goal.target().getAsDouble() - getVelocity()
+            : goal.target().getAsDouble() - getPosition();
+    return inVelocityMode
+        ? Math.abs(error) <= absTolerance
+        : Math.abs(error) <= absTolerance;
+  }
+
   public synchronized boolean isActive() {
     return Math.abs(getRotorVelocity()) > 0.0;
   }
 
   public synchronized Command applyGoalCommand(TalonFXSubsystemGoal goal) {
-    return run(() -> applyGoal(goal)).withName(config.name + " Apply Goal");
+    return run(() -> applyGoal(goal)).beforeStarting(Commands.runOnce(() -> simController.reset(getPosition(), getVelocity())).onlyIf(() -> shouldSimulate())
+    ).withName(config.name + " Apply Goal");
   }
 
   public synchronized void applyGoal(TalonFXSubsystemGoal goal) {
@@ -624,7 +637,6 @@ public class TalonFXSubsystem extends SubsystemBase {
               : goal.controlType() == ControlType.DUTY_CYCLE
                   ? () -> goal.target().getAsDouble() * 12.0
                   : () -> getSimControllerOutput());
-      simController.reset(getPosition(), getVelocity());
     }
   }
 
@@ -792,7 +804,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   @Override
   public void simulationPeriodic() {
-    if (config.simConstants != null && !config.simConstants.useSeparateThread()) {
+    if (config.simConstants != null && !config.simConstants.useSeparateThread() && !config.useCustomSimCallback) {
       simulationThread.update();
     }
   }
