@@ -124,7 +124,17 @@ public class TalonFXSubsystem extends SubsystemBase {
       boolean limitVoltage,
       boolean negateOutput) {
     public TalonFXSubsystemSimConstants(SimWrapper sim, PIDController simController) {
-      this(sim, new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(9999999, 9999999)), false, true, false);
+      this(sim, new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(9999999, 9999999)), false, false, false);
+    }
+
+    public TalonFXSubsystemSimConstants(SimWrapper sim, PIDController simController, double minInput, double maxInput) {
+      this(sim, createContinuousController(simController, minInput, maxInput), false, false, false);
+    }
+
+    private static ProfiledPIDController createContinuousController(PIDController simController, double minInput, double maxInput) {
+      ProfiledPIDController controller = new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(9999999, 9999999));
+      controller.enableContinuousInput(minInput, maxInput);
+      return controller;
     }
   }
 
@@ -354,7 +364,7 @@ public class TalonFXSubsystem extends SubsystemBase {
               : ChassisReference.CounterClockwise_Positive;
     }
 
-    setDefaultCommand(applyGoal(goal));
+    setDefaultCommand(applyGoalCommand(goal));
 
     if(config.logPrefix == null){
       config.logPrefix = "RobotState/Subsystems/" + config.name + "/";
@@ -578,64 +588,57 @@ public class TalonFXSubsystem extends SubsystemBase {
     return Math.abs(getRotorVelocity()) > 0.0;
   }
 
-  public synchronized Command applyGoal(TalonFXSubsystemGoal goal) {
-    Command command;
-    command =
-        run(
-            () -> {
-              this.goal = goal;
-              switch (goal.controlType()) {
-                case MOTION_MAGIC_POSITION:
-                  setSetpointMotionMagicPosition(goal.target().getAsDouble());
-                  break;
-                case MOTION_MAGIC_VELOCITY:
-                  setSetpointMotionMagicVelocity(goal.target().getAsDouble());
-                  break;
-                case POSITION:
-                  setSetpointPosition(goal.target().getAsDouble());
-                  break;
-                case VELOCITY:
-                  setSetpointVelocity(goal.target().getAsDouble());
-                  break;
-                case VOLTAGE:
-                  setVoltage(goal.target().getAsDouble());
-                  break;
-                case DUTY_CYCLE:
-                  setDutyCycle(goal.target().getAsDouble());
-                  break;
-                default:
-                  stop();
-                  break;
-              }
-            });
+  public synchronized Command applyGoalCommand(TalonFXSubsystemGoal goal) {
+    return run(() -> applyGoal(goal)).withName(config.name + " Apply Goal");
+  }
+
+  public synchronized void applyGoal(TalonFXSubsystemGoal goal) {
+    this.goal = goal;
+    switch (goal.controlType()) {
+      case MOTION_MAGIC_POSITION:
+        setSetpointMotionMagicPosition(goal.target().getAsDouble());
+        break;
+      case MOTION_MAGIC_VELOCITY:
+        setSetpointMotionMagicVelocity(goal.target().getAsDouble());
+        break;
+      case POSITION:
+        setSetpointPosition(goal.target().getAsDouble());
+        break;
+      case VELOCITY:
+        setSetpointVelocity(goal.target().getAsDouble());
+        break;
+      case VOLTAGE:
+        setVoltage(goal.target().getAsDouble());
+        break;
+      case DUTY_CYCLE:
+        setDutyCycle(goal.target().getAsDouble());
+        break;
+      default:
+        stop();
+        break;
+    }
     if (shouldSimulate()) {
-      return command
-          .beforeStarting(
-              () -> {
-                  simulationThread.setSimVoltage(
-                      goal.controlType() == ControlType.VOLTAGE
-                          ? goal.target()
-                          : goal.controlType() == ControlType.DUTY_CYCLE
-                              ? () -> goal.target().getAsDouble() * 12.0
-                              : () -> getSimControllerOutput());
-                  simController.reset(getPosition(), getVelocity());})
-          .withName("applyGoal(" + goal.toString() + ")");
-    } else {
-      return command.withName("applyGoal(" + goal.toString() + ")");
+      simulationThread.setSimVoltage(
+          goal.controlType() == ControlType.VOLTAGE
+              ? goal.target()
+              : goal.controlType() == ControlType.DUTY_CYCLE
+                  ? () -> goal.target().getAsDouble() * 12.0
+                  : () -> getSimControllerOutput());
+      simController.reset(getPosition(), getVelocity());
     }
   }
 
-  public synchronized Command applyVoltage(DoubleSupplier voltage) {
+  public synchronized Command applyVoltageCommand(DoubleSupplier voltage) {
     return run(() -> setVoltage(voltage.getAsDouble())).withName("applyVoltage");
   }
 
-  public synchronized Command applyVoltage(
+  public synchronized Command applyVoltageCommand(
       DoubleSupplier voltage, DoubleSupplier voltageFeedforward) {
     return run(() -> setVoltage(voltage.getAsDouble(), voltageFeedforward.getAsDouble()))
         .withName("applyVoltage");
   }
 
-  public synchronized Command applyControl(ControlRequest control){
+  public synchronized Command applyControlCommand(ControlRequest control){
     return run(() -> setMaster(control)).withName("applyControl");
   }
 
