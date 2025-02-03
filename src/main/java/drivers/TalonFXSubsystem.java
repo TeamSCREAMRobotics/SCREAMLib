@@ -22,6 +22,8 @@ import sim.SimulationThread;
 import java.util.function.DoubleSupplier;
 import java.util.function.UnaryOperator;
 
+import javax.swing.text.html.parser.DTD;
+
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
@@ -43,6 +45,7 @@ import com.ctre.phoenix6.signals.ControlModeValue;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.ctre.phoenix6.signals.SensorDirectionValue;
 import com.ctre.phoenix6.sim.CANcoderSimState;
 import com.ctre.phoenix6.sim.ChassisReference;
 import com.ctre.phoenix6.sim.TalonFXSimState;
@@ -116,20 +119,22 @@ public class TalonFXSubsystem extends SubsystemBase {
     DoubleSupplier target();
 
     ControlType controlType();
+
+    DoubleSupplier feedForward();
   }
 
   public record TalonFXSubsystemSimConstants(
       SimWrapper sim,
+      double gearing,
       ProfiledPIDController simController,
       boolean useSeparateThread,
-      boolean limitVoltage,
-      boolean negateOutput) {
-    public TalonFXSubsystemSimConstants(SimWrapper sim, PIDController simController) {
-      this(sim, new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(9999999, 9999999)), false, false, false);
+      boolean limitVoltage) {
+    public TalonFXSubsystemSimConstants(SimWrapper sim, double gearing, PIDController simController) {
+      this(sim, gearing, new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(9999999, 9999999)), false, false);
     }
 
-    public TalonFXSubsystemSimConstants(SimWrapper sim, PIDController simController, double minInput, double maxInput) {
-      this(sim, createContinuousController(simController, minInput, maxInput), false, false, false);
+    public TalonFXSubsystemSimConstants(SimWrapper sim, double gearing, PIDController simController, double minInput, double maxInput) {
+      this(sim, gearing, createContinuousController(simController, minInput, maxInput), false, false);
     }
 
     private static ProfiledPIDController createContinuousController(PIDController simController, double minInput, double maxInput) {
@@ -210,12 +215,12 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   protected TalonFXSubsystemGoal goal;
 
-  protected TalonFXSimState masterSimState;
-  protected CANcoderSimState cancoderSimState;
   protected SimWrapper sim;
   protected SimulationThread simulationThread;
   protected ProfiledPIDController simController;
   protected DoubleSupplier simFeedforwardSup;
+  protected double simPosition;
+  protected double simVelocity;
 
   protected TalonFXConfiguration masterConfig;
   protected final TalonFXConfiguration[] slaveConfigs;
@@ -248,6 +253,10 @@ public class TalonFXSubsystem extends SubsystemBase {
     public ControlType controlType() {
       return ControlType.VOLTAGE;
     }
+
+    public DoubleSupplier feedForward() {
+      return () -> 0.0;
+    };
   };
 
   protected double setpoint = 0;
@@ -269,8 +278,6 @@ public class TalonFXSubsystem extends SubsystemBase {
       CANcoderConfiguration cancoderConfig = config.cancoderConstants.config;
       DeviceConfig.configureCANcoder(config.name + " CANcoder", cancoder, cancoderConfig);
     }
-
-    goal = defaultGoal;
 
     masterConfig = new TalonFXConfiguration();
 
@@ -348,10 +355,6 @@ public class TalonFXSubsystem extends SubsystemBase {
     masterRotorVelocitySignal = master.getRotorVelocity();
 
     if (shouldSimulate()) {
-      masterSimState = master.getSimState();
-      if (config.cancoderConstants != null) {
-        cancoderSimState = cancoder.getSimState();
-      }
       sim = config.simConstants.sim();
       simulationThread =
           new SimulationThread(
@@ -360,13 +363,13 @@ public class TalonFXSubsystem extends SubsystemBase {
               config.simPeriodSec,
               config.name + " Sim Thread");
       simController = config.simConstants.simController();
-      masterSimState.Orientation =
-          config.masterConstants.invert == InvertedValue.Clockwise_Positive
-              ? ChassisReference.Clockwise_Positive
-              : ChassisReference.CounterClockwise_Positive;
+      simFeedforwardSup = () -> 0.0;
     }
 
-    setDefaultCommand(applyGoalCommand(goal));
+    if(defaultGoal != null){
+      goal = defaultGoal;
+      setDefaultCommand(applyGoalCommand(goal));
+    }
 
     if(config.logPrefix == null){
       config.logPrefix = "RobotState/Subsystems/" + config.name + "/";
@@ -384,6 +387,10 @@ public class TalonFXSubsystem extends SubsystemBase {
     }
 
     System.out.println("[Init] " + config.name + " initialization complete!");
+  }
+
+  public TalonFXSubsystem(TalonFXSubsystemConfiguration config){
+    this(config, null);
   }
 
   /**
@@ -500,7 +507,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     configMaster(masterConfig);
   }
 
-  private boolean shouldSimulate() {
+  protected boolean shouldSimulate() {
     if (config.forceSimulation && config.simConstants == null) {
       DriverStation.reportError(
           "Could not force simulation in "
@@ -517,23 +524,19 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized double getRotorPosition() {
-    return masterRotorPositionSignal.asSupplier().get().in(Units.Rotations);
+    return shouldSimulate() ? simPosition : masterRotorPositionSignal.asSupplier().get().in(Units.Rotations);
   }
 
   public synchronized double getPosition() {
-    return masterPositionSignal.asSupplier().get().in(Units.Rotations);
+    return shouldSimulate() ? simPosition / config.simConstants.gearing  : masterPositionSignal.asSupplier().get().in(Units.Rotations);
   }
 
   public synchronized double getRotorVelocity() {
-    return masterRotorVelocitySignal.asSupplier().get().in(Units.RotationsPerSecond);
+    return shouldSimulate() ? simVelocity : masterRotorVelocitySignal.asSupplier().get().in(Units.RotationsPerSecond);
   }
 
   public synchronized double getVelocity() {
-    return shouldSimulate() ? getRotorVelocity() / (config.sensorToMechRatio * config.rotorToSensorRatio) : masterVelocitySignal.asSupplier().get().in(Units.RotationsPerSecond);
-  }
-
-  public synchronized TalonFXSimState getSimState() {
-    return masterSimState;
+    return shouldSimulate() ? simVelocity / config.simConstants.gearing : masterVelocitySignal.asSupplier().get().in(Units.RotationsPerSecond);
   }
 
   public synchronized double getSetpoint() {
@@ -545,35 +548,19 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized double getError() {
-    return inVelocityMode
-        ? goal.target().getAsDouble() - getVelocity()
-        : goal.target().getAsDouble() - getPosition();
+    if(goal != null){
+      return inVelocityMode
+      ? goal.target().getAsDouble() - getVelocity()
+      : goal.target().getAsDouble() - getPosition();
+    } else {
+      return inVelocityMode
+      ? setpoint - getVelocity()
+      : setpoint - getPosition();
+    }
   }
 
   public synchronized Rotation2d getAngle() {
     return Rotation2d.fromRotations(getPosition());
-  }
-
-  public synchronized double getSimControllerOutput() {
-    double output;
-    switch (goal.controlType()) {
-      case POSITION:
-      case MOTION_MAGIC_POSITION:
-        output = simController.calculate(getPosition(), setpoint);
-        break;
-      case VELOCITY:
-      case MOTION_MAGIC_VELOCITY:
-        output = simController.calculate(getVelocity(), setpoint);
-        break;
-      default:
-        output = 0;
-        break;
-    }
-    if (simFeedforwardSup != null) {
-      return output + simFeedforwardSup.getAsDouble();
-    } else {
-      return output;
-    }
   }
 
   public synchronized boolean atGoal() {
@@ -609,34 +596,26 @@ public class TalonFXSubsystem extends SubsystemBase {
     this.goal = goal;
     switch (goal.controlType()) {
       case MOTION_MAGIC_POSITION:
-        setSetpointMotionMagicPosition(goal.target().getAsDouble());
+        setSetpointMotionMagicPosition(goal.target().getAsDouble(), goal.feedForward().getAsDouble());
         break;
       case MOTION_MAGIC_VELOCITY:
-        setSetpointMotionMagicVelocity(goal.target().getAsDouble());
+        setSetpointMotionMagicVelocity(goal.target().getAsDouble(), goal.feedForward().getAsDouble());
         break;
       case POSITION:
-        setSetpointPosition(goal.target().getAsDouble());
+        setSetpointPosition(goal.target().getAsDouble(), goal.feedForward().getAsDouble());
         break;
       case VELOCITY:
-        setSetpointVelocity(goal.target().getAsDouble());
+        setSetpointVelocity(goal.target().getAsDouble(), goal.feedForward().getAsDouble());
         break;
       case VOLTAGE:
-        setVoltage(goal.target().getAsDouble());
+        setVoltage(goal.target().getAsDouble(), goal.feedForward().getAsDouble());
         break;
       case DUTY_CYCLE:
-        setDutyCycle(goal.target().getAsDouble());
+        setDutyCycle(goal.target().getAsDouble(), goal.feedForward().getAsDouble());
         break;
       default:
         stop();
         break;
-    }
-    if (shouldSimulate()) {
-      simulationThread.setSimVoltage(
-          goal.controlType() == ControlType.VOLTAGE
-              ? goal.target()
-              : goal.controlType() == ControlType.DUTY_CYCLE
-                  ? () -> goal.target().getAsDouble() * 12.0
-                  : () -> getSimControllerOutput());
     }
   }
 
@@ -656,6 +635,9 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   public synchronized void setDutyCycle(double dutyCycle, double dutyCycleFeedforward) {
     setMaster(dutyCycleRequest.withOutput(dutyCycle + dutyCycleFeedforward));
+    if(shouldSimulate()){
+      simulationThread.setSimVoltage(() -> (dutyCycle * 12) + dutyCycleFeedforward);
+    }
   }
 
   public synchronized void setDutyCycle(double dutyCycle) {
@@ -663,10 +645,10 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized void setVoltage(double volts, double voltageFeedForward) {
-    if (shouldSimulate()) {
-      simulationThread.setSimVoltage(() -> volts);
-    }
     setMaster(voltageRequest.withOutput(volts + voltageFeedForward));
+    if (shouldSimulate()) {
+      simulationThread.setSimVoltage(() -> volts + voltageFeedForward);
+    }
   }
 
   public synchronized void setVoltage(double volts) {
@@ -716,6 +698,9 @@ public class TalonFXSubsystem extends SubsystemBase {
             ? motionMagicPositionRequest.withPosition(position).withFeedForward(voltageFeedForward)
             : positionRequest.withPosition(position).withFeedForward(voltageFeedForward);
     setMaster(control);
+    if (shouldSimulate()) {
+      simulationThread.setSimVoltage(() -> simController.calculate(getPosition(), position) + voltageFeedForward);
+    }
   }
 
   private synchronized void setTargetVelocity(
@@ -727,6 +712,9 @@ public class TalonFXSubsystem extends SubsystemBase {
             ? motionMagicVelocityRequest.withVelocity(velocity).withFeedForward(voltageFeedForward)
             : velocityRequest.withVelocity(velocity).withFeedForward(voltageFeedForward);
     setMaster(control);
+    if (shouldSimulate()) {
+      simulationThread.setSimVoltage(() -> simController.calculate(getVelocity(), velocity) + voltageFeedForward);
+    }
   }
 
   public synchronized void setMaster(ControlRequest control) {
@@ -758,24 +746,13 @@ public class TalonFXSubsystem extends SubsystemBase {
    */
   public synchronized void setSimState(double position, double velocity) {
     if (config.codeEnabled && !isEStopped) {
-      if (config.cancoderConstants != null) {
-        switch (config.feedbackSensorSource) {
-          case FusedCANcoder:
-          case RemoteCANcoder:
-            cancoderSimState.setRawPosition(
-                position / config.rotorToSensorRatio * config.sensorToMechRatio);
-            break;
-          case SyncCANcoder:
-          case RotorSensor:
-            break;
-          default:
-            break;
-        }
-      }
-      masterSimState.setRawRotorPosition(position);
-      masterSimState.setSupplyVoltage(RobotController.getBatteryVoltage());
-      masterSimState.setRotorVelocity(velocity);
+      simPosition = position;
+      simVelocity = velocity;
     }
+  }
+
+  protected void setGoal(TalonFXSubsystemGoal goal){
+    this.goal = goal;
   }
 
   public synchronized void resetPosition(double position) {
@@ -787,8 +764,10 @@ public class TalonFXSubsystem extends SubsystemBase {
     if (config.logTelemetry) {
       outputTelemetry();
     }
-    DogLog.log(logPrefix + "Goal", goal.toString());
-    DogLog.log(logPrefix + "GoalTarget", goal.target().getAsDouble());
+    if(goal != null){
+      DogLog.log(logPrefix + "Goal", goal.toString());
+      DogLog.log(logPrefix + "GoalTarget", goal.target().getAsDouble());
+    }
     DogLog.log(logPrefix + "Setpoint", setpoint);
     DogLog.log(logPrefix + "Measured", inVelocityMode ? getVelocity() : getPosition());
     if (getCurrentCommand() != null) {
@@ -799,6 +778,8 @@ public class TalonFXSubsystem extends SubsystemBase {
       simController.setI(SmartDashboard.getNumber(config.name + " kI", simController.getI()));
       simController.setD(SmartDashboard.getNumber(config.name + " kD", simController.getD()));
       simController.setConstraints(new Constraints(SmartDashboard.getNumber(config.name + " Velocity", simController.getConstraints().maxVelocity), SmartDashboard.getNumber(config.name + " Acceleration", simController.getConstraints().maxAcceleration)));
+      DogLog.log(logPrefix + "ControllerPosition", simController.getSetpoint().position);
+      DogLog.log(logPrefix + "ControllerVelocity", simController.getSetpoint().velocity);
     }
   }
 
@@ -812,7 +793,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   public void outputTelemetry() {
     DogLog.log(
         logPrefix + "AppliedVolts",
-        shouldSimulate() ? simulationThread.getSimVoltage().getAsDouble() : voltageRequest.Output);
+        shouldSimulate() ? simulationThread.getSimVoltage().getAsDouble() + simFeedforwardSup.getAsDouble() : voltageRequest.Output);
     DogLog.log(logPrefix + "Position", getPosition());
     DogLog.log(logPrefix + "Velocity", new double[] {getVelocity(), getVelocity() * 60.0});
     DogLog.log(logPrefix + "Rotor Position", getRotorPosition());
@@ -822,7 +803,9 @@ public class TalonFXSubsystem extends SubsystemBase {
     DogLog.log(logPrefix + "Supply Current", master.getSupplyCurrent().getValueAsDouble());
     DogLog.log(logPrefix + "Setpoint", getSetpoint());
     DogLog.log(logPrefix + "Error", getError());
-    DogLog.log(logPrefix + "At Goal?", atGoal());
+    if(goal != null){
+      DogLog.log(logPrefix + "At Goal?", atGoal());
+    }
     DogLog.log(logPrefix + "In Velocity Mode", inVelocityMode);
     DogLog.log(logPrefix + "Control Mode", getControlMode().toString());
   }

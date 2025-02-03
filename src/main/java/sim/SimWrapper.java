@@ -8,6 +8,8 @@ import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
+import data.Length;
+
 public class SimWrapper implements SimInterface {
 
   DCMotorSim dcSim;
@@ -23,29 +25,29 @@ public class SimWrapper implements SimInterface {
   public SimWrapper(DCMotorSim sim) {
     updateConsumer = sim::update;
     voltageConsumer = (value) -> sim.setInput(0, value);
-    positionSupplier = sim::getAngularPositionRotations;
-    velocitySupplier = sim::getAngularVelocityRPM;
+    positionSupplier = () -> sim.getAngularPositionRotations() * sim.getGearing();
+    velocitySupplier = () -> (sim.getAngularVelocityRPM() / 60.0) * sim.getGearing();
   }
 
-  public SimWrapper(ElevatorSim sim) {
+  public SimWrapper(ElevatorSim sim, Length spoolCircumference, double gearing) {
     updateConsumer = sim::update;
     voltageConsumer = (value) -> sim.setInput(0, value);
-    positionSupplier = sim::getPositionMeters;
-    velocitySupplier = sim::getVelocityMetersPerSecond;
+    positionSupplier = () -> (sim.getPositionMeters() / spoolCircumference.getMeters()) * gearing;
+    velocitySupplier = () -> (sim.getVelocityMetersPerSecond() / spoolCircumference.getMeters()) * gearing;
   }
 
-  public SimWrapper(SingleJointedArmSim sim) {
+  public SimWrapper(SingleJointedArmSim sim, double gearing) {
     updateConsumer = sim::update;
     voltageConsumer = (value) -> sim.setInput(0, value);
-    positionSupplier = () -> Units.radiansToRotations(sim.getAngleRads());
-    velocitySupplier = () -> Units.radiansToRotations(sim.getVelocityRadPerSec());
+    positionSupplier = () -> Units.radiansToRotations(sim.getAngleRads()) * gearing;
+    velocitySupplier = () -> Units.radiansToRotations(sim.getVelocityRadPerSec()) * gearing;
   }
 
   public SimWrapper(FlywheelSim sim) {
     updateConsumer = sim::update;
     voltageConsumer = (value) -> sim.setInput(0, value);
     positionSupplier = () -> 0.0;
-    velocitySupplier = () -> (sim.getAngularVelocityRPM() / 60.0);
+    velocitySupplier = () -> (sim.getAngularVelocityRPM() / 60.0) * sim.getGearing();
   }
 
   @Override
