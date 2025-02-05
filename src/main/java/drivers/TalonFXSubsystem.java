@@ -204,8 +204,8 @@ public class TalonFXSubsystem extends SubsystemBase {
     public int statorCurrentLimit = 40; // amps
     public boolean enableStatorCurrentLimit = false;
 
-    public double maxUnitsLimit = 3.4e+38;
-    public double minUnitsLimit = -3.4e+38;
+    public double maxUnitsLimit = 0.0;
+    public double minUnitsLimit = 0.0;
   }
 
   protected final TalonFXSubsystemConfiguration config;
@@ -289,11 +289,11 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     forwardSoftLimitRotations = (config.maxUnitsLimit - config.softLimitDeadband);
     masterConfig.SoftwareLimitSwitch.ForwardSoftLimitThreshold = forwardSoftLimitRotations;
-    masterConfig.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
+    masterConfig.SoftwareLimitSwitch.ForwardSoftLimitEnable = config.minUnitsLimit != 0.0;
 
     reverseSoftLimitRotations = (config.minUnitsLimit + config.softLimitDeadband);
     masterConfig.SoftwareLimitSwitch.ReverseSoftLimitThreshold = reverseSoftLimitRotations;
-    masterConfig.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
+    masterConfig.SoftwareLimitSwitch.ReverseSoftLimitEnable = config.minUnitsLimit != 0.0;
 
     masterConfig.Slot0 = config.slot0;
     masterConfig.Slot1 = config.slot1;
