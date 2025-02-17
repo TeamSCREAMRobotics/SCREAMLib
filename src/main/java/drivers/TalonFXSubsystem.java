@@ -372,7 +372,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     }
 
     if(config.logPrefix == null){
-      config.logPrefix = "RobotState/Subsystems/" + config.name + "/";
+      config.logPrefix = "Subsystems/" + config.name + "/";
       logPrefix = config.logPrefix;
     } else {
       logPrefix = config.logPrefix;
@@ -589,7 +589,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   public synchronized Command applyGoalCommand(TalonFXSubsystemGoal goal) {
     return run(() -> applyGoal(goal)).beforeStarting(Commands.runOnce(() -> simController.reset(getPosition(), getVelocity())).onlyIf(() -> shouldSimulate())
-    ).withName(config.name + " Apply Goal");
+    ).withName(config.name + " Apply Goal " + goal.toString());
   }
 
   public synchronized void applyGoal(TalonFXSubsystemGoal goal) {
