@@ -39,6 +39,10 @@ public class LimelightVision {
     return LimelightHelpers.getLatency_Capture(limelight.name);
   }
 
+  public static double getLatency(Limelight limelight){
+    return getLatency_Pipeline(limelight) + getLatency_Capture(limelight);
+  }
+
   public static PoseEstimate getPoseEstimate_MT2(
       Limelight limelight, double robotHeadingDegrees, double yawRateDps) {
     LimelightHelpers.SetRobotOrientation(

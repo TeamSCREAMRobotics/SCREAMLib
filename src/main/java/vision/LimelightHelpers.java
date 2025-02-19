@@ -602,7 +602,7 @@ public class LimelightHelpers {
         pose, adjustedTimestamp, latency, tagCount, tagSpan, tagDist, tagArea, rawFiducials);
   }
 
-  private static RawFiducial[] getRawFiducials(String limelightName) {
+  public static RawFiducial[] getRawFiducials(String limelightName) {
     var entry = LimelightHelpers.getLimelightNTTableEntry(limelightName, "rawfiducials");
     var rawFiducialArray = entry.getDoubleArray(new double[0]);
     int valsPerEntry = 7;
