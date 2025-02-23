@@ -793,7 +793,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   public void outputTelemetry() {
     DogLog.log(
         logPrefix + "AppliedVolts",
-        shouldSimulate() ? simulationThread.getSimVoltage().getAsDouble() + simFeedforwardSup.getAsDouble() : voltageRequest.Output);
+        shouldSimulate() ? simulationThread.getSimVoltage().getAsDouble() + simFeedforwardSup.getAsDouble() : master.getMotorVoltage().getValueAsDouble());
     DogLog.log(logPrefix + "Position", getPosition());
     DogLog.log(logPrefix + "Velocity", new double[] {getVelocity(), getVelocity() * 60.0});
     DogLog.log(logPrefix + "Rotor Position", getRotorPosition());
