@@ -520,23 +520,23 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized ControlModeValue getControlMode() {
-    return master.getControlMode().asSupplier().get();
+    return master.getControlMode().getValue();
   }
 
   public synchronized double getRotorPosition() {
-    return shouldSimulate() ? simPosition : masterRotorPositionSignal.asSupplier().get().in(Units.Rotations);
+    return shouldSimulate() ? simPosition : masterRotorPositionSignal.refresh().getValueAsDouble();
   }
 
   public synchronized double getPosition() {
-    return shouldSimulate() ? simPosition / config.simConstants.gearing  : masterPositionSignal.asSupplier().get().in(Units.Rotations);
+    return shouldSimulate() ? simPosition / config.simConstants.gearing  : masterPositionSignal.refresh().getValueAsDouble();
   }
 
   public synchronized double getRotorVelocity() {
-    return shouldSimulate() ? simVelocity : masterRotorVelocitySignal.asSupplier().get().in(Units.RotationsPerSecond);
+    return shouldSimulate() ? simVelocity : masterRotorVelocitySignal.refresh().getValueAsDouble();
   }
 
   public synchronized double getVelocity() {
-    return shouldSimulate() ? simVelocity / config.simConstants.gearing : masterVelocitySignal.asSupplier().get().in(Units.RotationsPerSecond);
+    return shouldSimulate() ? simVelocity / config.simConstants.gearing : masterVelocitySignal.refresh().getValueAsDouble();
   }
 
   public synchronized double getSetpoint() {
