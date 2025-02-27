@@ -132,6 +132,16 @@ public class PhoenixSwerveHelper {
                 .plus(offset));
   }
 
+  public FieldCentric getPointingAtProfiled(
+      Translation2d translation, Translation2d targetPoint, ProfiledPIDController profile) {
+    return getPointingAtProfiled(translation, targetPoint, new Rotation2d(), profile);
+  }
+
+  public FieldCentric getPointingAtProfiled(
+      Translation2d translation, Translation2d targetPoint, Rotation2d offset, ProfiledPIDController profile) {
+    return getFacingAngleProfiled(translation, ScreamMath.calculateAngleToPoint(poseSup.get().getTranslation(), targetPoint).plus(offset), profile);
+  }
+
   public FieldCentric getHeadingCorrectedFieldCentric(
       Translation2d translation, double angularVelocity) {
     double omega;
