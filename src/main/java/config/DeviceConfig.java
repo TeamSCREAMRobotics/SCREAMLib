@@ -1,9 +1,5 @@
 package config;
 
-import config.ErrorChecker.DeviceConfiguration;
-import pid.ScreamPIDConstants;
-import pid.ScreamPIDConstants.FeedforwardConstants;
-import pid.ScreamPIDConstants.MotionMagicConstants;
 import com.ctre.phoenix6.configs.AudioConfigs;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.ClosedLoopGeneralConfigs;
@@ -25,7 +21,11 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import config.ErrorChecker.DeviceConfiguration;
 import edu.wpi.first.math.geometry.Rotation2d;
+import pid.ScreamPIDConstants;
+import pid.ScreamPIDConstants.FeedforwardConstants;
+import pid.ScreamPIDConstants.MotionMagicConstants;
 
 public class DeviceConfig {
 

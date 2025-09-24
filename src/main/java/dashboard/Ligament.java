@@ -1,13 +1,12 @@
 package dashboard;
 
-import java.util.function.Supplier;
-
 import data.Length;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
+import java.util.function.Supplier;
 
 public class Ligament {
 
@@ -21,27 +20,36 @@ public class Ligament {
 
   protected boolean overrideAppend;
 
-  public Ligament(){}
+  public Ligament() {}
 
-  protected void initialize(int index, MechanismRoot2d measured, MechanismRoot2d setpoint){
-    measuredLig = measured.append(
-        new MechanismLigament2d("Joint " + (index + 1),  0.0, 0.0, 6, new Color8Bit(Color.kRed)));
-    setpointLig = setpoint.append(
-        new MechanismLigament2d("Joint " + (index + 1), 0.0, 0.0, 6, new Color8Bit(Color.kGreen)));
+  protected void initialize(int index, MechanismRoot2d measured, MechanismRoot2d setpoint) {
+    measuredLig =
+        measured.append(
+            new MechanismLigament2d(
+                "Joint " + (index + 1), 0.0, 0.0, 6, new Color8Bit(Color.kRed)));
+    setpointLig =
+        setpoint.append(
+            new MechanismLigament2d(
+                "Joint " + (index + 1), 0.0, 0.0, 6, new Color8Bit(Color.kGreen)));
   }
 
-  protected void initialize(int index, MechanismLigament2d previousMeasured, MechanismLigament2d previousSetpoint){
-    measuredLig = previousMeasured.append(
-        new MechanismLigament2d("Joint " + (index + 1), 0.0, 0.0, 6, new Color8Bit(Color.kRed)));
-    setpointLig = previousSetpoint.append(
-        new MechanismLigament2d("Joint " + (index + 1), 0.0, 0.0, 6, new Color8Bit(Color.kGreen)));
+  protected void initialize(
+      int index, MechanismLigament2d previousMeasured, MechanismLigament2d previousSetpoint) {
+    measuredLig =
+        previousMeasured.append(
+            new MechanismLigament2d(
+                "Joint " + (index + 1), 0.0, 0.0, 6, new Color8Bit(Color.kRed)));
+    setpointLig =
+        previousSetpoint.append(
+            new MechanismLigament2d(
+                "Joint " + (index + 1), 0.0, 0.0, 6, new Color8Bit(Color.kGreen)));
   }
 
-  public Ligament withOverrideAppend(boolean override){
+  public Ligament withOverrideAppend(boolean override) {
     overrideAppend = override;
     return this;
   }
-    
+
   public Ligament withStaticAngle(Rotation2d angle) {
     this.measuredAngle = () -> angle;
     this.setpointAngle = () -> angle;
@@ -98,7 +106,7 @@ public class Ligament {
     this.setpointLength = () -> setpoint;
   }
 
-  protected void update(){
+  protected void update() {
     this.setpointLig.setLength(setpointLength.get().getMeters());
     this.setpointLig.setAngle(setpointAngle.get().getDegrees());
     this.measuredLig.setLength(measuredLength.get().getMeters());

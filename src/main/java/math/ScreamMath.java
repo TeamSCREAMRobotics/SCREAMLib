@@ -64,11 +64,14 @@ public class ScreamMath {
         MathUtil.clamp(rotation.getRadians(), low.getRadians(), high.getRadians()));
   }
 
-  public static double square(double n){
+  public static double square(double n) {
     return Math.pow(n, 2);
   }
 
-  public static MomentOfInertia parallelAxisTheorem(MomentOfInertia moi, Mass mass, Length distance){
-    return Units.KilogramSquareMeters.of(moi.in(Units.KilogramSquareMeters) * mass.times(distance.squared().getMeters()).in(Units.Kilograms));
+  public static MomentOfInertia parallelAxisTheorem(
+      MomentOfInertia moi, Mass mass, Length distance) {
+    return Units.KilogramSquareMeters.of(
+        moi.in(Units.KilogramSquareMeters)
+            * mass.times(distance.squared().getMeters()).in(Units.Kilograms));
   }
 }

@@ -8,5 +8,5 @@ public class DataHelpers {
 
   public static record Dimensions(double height, double width) {}
 
-  public static record LoggedOutput<T>(String key, T value){}
+  public static record LoggedOutput<T>(String key, T value) {}
 }

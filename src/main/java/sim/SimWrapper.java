@@ -1,5 +1,6 @@
 package sim;
 
+import data.Length;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import edu.wpi.first.wpilibj.simulation.ElevatorSim;
@@ -7,8 +8,6 @@ import edu.wpi.first.wpilibj.simulation.FlywheelSim;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
-
-import data.Length;
 
 public class SimWrapper implements SimInterface {
 
@@ -33,7 +32,8 @@ public class SimWrapper implements SimInterface {
     updateConsumer = sim::update;
     voltageConsumer = (value) -> sim.setInput(0, value);
     positionSupplier = () -> (sim.getPositionMeters() / spoolCircumference.getMeters()) * gearing;
-    velocitySupplier = () -> (sim.getVelocityMetersPerSecond() / spoolCircumference.getMeters()) * gearing;
+    velocitySupplier =
+        () -> (sim.getVelocityMetersPerSecond() / spoolCircumference.getMeters()) * gearing;
   }
 
   public SimWrapper(SingleJointedArmSim sim, double gearing) {

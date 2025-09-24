@@ -32,9 +32,9 @@ public class Mechanism {
     setpointRoot = setpoint.getRoot(key + " Setpoint", 0, 0);
 
     ligaments[0].initialize(0, measuredRoot, setpointRoot);
-    if(ligaments.length > 1){
-      for(int i = 1; i < ligaments.length; i++){
-        if(ligaments[i].overrideAppend){
+    if (ligaments.length > 1) {
+      for (int i = 1; i < ligaments.length; i++) {
+        if (ligaments[i].overrideAppend) {
           ligaments[i].initialize(i, measuredRoot, setpointRoot);
           continue;
         }
@@ -58,7 +58,7 @@ public class Mechanism {
   }
 
   protected void update() {
-    for(Ligament lig : ligaments){
+    for (Ligament lig : ligaments) {
       lig.update();
     }
     this.setpointRoot.setPosition(position.get().getX(), position.get().getY());

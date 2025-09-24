@@ -93,7 +93,7 @@ public class DataConversions {
     return new Translation2d(translation.getX(), translation.getZ());
   }
 
-  public static Translation3d projectTo3d(Translation2d translation){
+  public static Translation3d projectTo3d(Translation2d translation) {
     return new Translation3d(translation.getX(), 0, translation.getY());
   }
 }

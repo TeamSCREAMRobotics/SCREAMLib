@@ -1,13 +1,12 @@
 package sim;
 
+import drivers.TalonFXSubsystem.TalonFXSubsystemSimConstants;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.Timer;
 import java.util.function.BiConsumer;
 import java.util.function.DoubleSupplier;
-
-import drivers.TalonFXSubsystem.TalonFXSubsystemSimConstants;
 
 public class SimulationThread {
 
@@ -66,8 +65,7 @@ public class SimulationThread {
     lastSimTime = currentTime;
 
     simInterface.update(deltaTime);
-    simInterface.setInputVoltage(
-        simVoltage.getAsDouble());
+    simInterface.setInputVoltage(simVoltage.getAsDouble());
     stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
   }
 
@@ -80,8 +78,7 @@ public class SimulationThread {
               lastSimTime = currentTime;
 
               simInterface.update(deltaTime);
-              simInterface.setInputVoltage(
-                  simVoltage.getAsDouble());
+              simInterface.setInputVoltage(simVoltage.getAsDouble());
               stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
             });
     simNotifier.setName(name);

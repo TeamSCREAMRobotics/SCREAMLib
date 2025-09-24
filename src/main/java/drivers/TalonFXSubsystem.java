@@ -1,29 +1,5 @@
 package drivers;
 
-import config.DeviceConfig;
-import dev.doglog.DogLog;
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.controller.ProfiledPIDController;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
-import edu.wpi.first.units.Units;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.AngularVelocity;
-import edu.wpi.first.util.sendable.Sendable;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.RobotController;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import pid.ScreamPIDConstants.MotionMagicConstants;
-import sim.SimWrapper;
-import sim.SimulationThread;
-import java.util.function.DoubleSupplier;
-import java.util.function.UnaryOperator;
-
-import javax.swing.text.html.parser.DTD;
-
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
@@ -45,71 +21,61 @@ import com.ctre.phoenix6.signals.ControlModeValue;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import com.ctre.phoenix6.signals.SensorDirectionValue;
-import com.ctre.phoenix6.sim.CANcoderSimState;
-import com.ctre.phoenix6.sim.ChassisReference;
-import com.ctre.phoenix6.sim.TalonFXSimState;
+import config.DeviceConfig;
+import dev.doglog.DogLog;
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import java.util.function.DoubleSupplier;
+import java.util.function.UnaryOperator;
+import pid.ScreamPIDConstants.MotionMagicConstants;
+import sim.SimWrapper;
+import sim.SimulationThread;
 
 /**
- * Base class for TalonFX based subsystems.
- * Defines subsystems as a set of motors on a mechanism that do the same thing. 
- * This means that each DOF of a mechanism is represented as a separate subsystem.
- * <p> Supports:
- *  <ul>
- *    <li> 1 master TalonFX
- *    <li> Any number of slave TalonFXs
- *    <li> 1 CANCoder (Complex systems with multiple CANCoders should be handled externally)
- *    <li> Simple control requests -- both Motion Magic and non Motion Magic (Velocity, Position, Voltage, Duty Cycle)
- *    <li> User-defined control requests
- *    <li> Multi and single threaded simulation setup through configuration
- *    <li> Logging with DogLog
+ * Base class for TalonFX based subsystems. Defines subsystems as a set of motors on a mechanism
+ * that do the same thing. This means that each DOF of a mechanism is represented as a separate
+ * subsystem.
+ *
+ * <p>Supports:
+ *
+ * <ul>
+ *   <li>1 master TalonFX
+ *   <li>Any number of slave TalonFXs
+ *   <li>1 CANCoder (Complex systems with multiple CANCoders should be handled externally)
+ *   <li>Simple control requests -- both Motion Magic and non Motion Magic (Velocity, Position,
+ *       Voltage, Duty Cycle)
+ *   <li>User-defined control requests
+ *   <li>Multi and single threaded simulation setup through configuration
+ *   <li>Logging with DogLog
  */
 public class TalonFXSubsystem extends SubsystemBase {
 
-  /**
-     * Creates a new CANDevice.
-     *
-     * @param deviceId ID of the device.
-     * @param canbus   Name of the CAN bus this device is on. Possible CAN bus
-     *                 strings are:
-     *                 <ul>
-     *                   <li>"rio" for the native roboRIO CAN bus
-     *                   <li>CANivore name or serial number
-     *                   <li>SocketCAN interface (non-FRC Linux only)
-     *                   <li>"*" for any CANivore seen by the program
-     *                   <li>empty string (default) to select the default for the
-     *                       system:
-     *                   <ul>
-     *                     <li>"rio" on roboRIO
-     *                     <li>"can0" on Linux
-     *                     <li>"*" on Windows
-     *                   </ul>
-     *                 </ul>
-     */
   public static record CANDevice(Integer id, String canbus) {
-    public CANDevice() {
-      this(null, null);
-    }
-    public CANDevice(Integer id){
+    public CANDevice(Integer id) {
       this(id, "");
     }
   }
 
   /**
    * Constants for a TalonFX motor controller.
-   * 
+   *
    * @param device CANDevice constants.
    * @param invert InvertedValue of the device.
    */
-  public static record TalonFXConstants(CANDevice device, InvertedValue invert) {
-    public TalonFXConstants() {
-      this(null, null);
-    }
-  }
+  public static record TalonFXConstants(CANDevice device, InvertedValue invert) {}
 
   /**
    * Constants for a CANCoder.
-   * 
+   *
    * @param device CANDevice constants.
    * @param config Configuration for the device.
    */
@@ -129,16 +95,42 @@ public class TalonFXSubsystem extends SubsystemBase {
       ProfiledPIDController simController,
       boolean useSeparateThread,
       boolean limitVoltage) {
-    public TalonFXSubsystemSimConstants(SimWrapper sim, double gearing, PIDController simController) {
-      this(sim, gearing, new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(9999999, 9999999)), false, false);
+    public TalonFXSubsystemSimConstants(
+        SimWrapper sim, double gearing, PIDController simController) {
+      this(
+          sim,
+          gearing,
+          new ProfiledPIDController(
+              simController.getP(),
+              simController.getI(),
+              simController.getD(),
+              new Constraints(9999999, 9999999)),
+          false,
+          false);
     }
 
-    public TalonFXSubsystemSimConstants(SimWrapper sim, double gearing, PIDController simController, double minInput, double maxInput) {
-      this(sim, gearing, createContinuousController(simController, minInput, maxInput), false, false);
+    public TalonFXSubsystemSimConstants(
+        SimWrapper sim,
+        double gearing,
+        PIDController simController,
+        double minInput,
+        double maxInput) {
+      this(
+          sim,
+          gearing,
+          createContinuousController(simController, minInput, maxInput),
+          false,
+          false);
     }
 
-    private static ProfiledPIDController createContinuousController(PIDController simController, double minInput, double maxInput) {
-      ProfiledPIDController controller = new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(9999999, 9999999));
+    private static ProfiledPIDController createContinuousController(
+        PIDController simController, double minInput, double maxInput) {
+      ProfiledPIDController controller =
+          new ProfiledPIDController(
+              simController.getP(),
+              simController.getI(),
+              simController.getD(),
+              new Constraints(9999999, 9999999));
       controller.enableContinuousInput(minInput, maxInput);
       return controller;
     }
@@ -243,21 +235,23 @@ public class TalonFXSubsystem extends SubsystemBase {
 
   public final String logPrefix;
 
-  public static final TalonFXSubsystemGoal defaultGoal = new TalonFXSubsystemGoal() {
-    @Override
-    public DoubleSupplier target() {
-      return () -> 0.0;
-    }
+  public static final TalonFXSubsystemGoal defaultGoal =
+      new TalonFXSubsystemGoal() {
+        @Override
+        public DoubleSupplier target() {
+          return () -> 0.0;
+        }
 
-    @Override
-    public ControlType controlType() {
-      return ControlType.VOLTAGE;
-    }
+        @Override
+        public ControlType controlType() {
+          return ControlType.VOLTAGE;
+        }
 
-    public DoubleSupplier feedForward() {
-      return () -> 0.0;
-    };
-  };
+        public DoubleSupplier feedForward() {
+          return () -> 0.0;
+        }
+        ;
+      };
 
   protected double setpoint = 0;
   public boolean inVelocityMode = false;
@@ -267,14 +261,12 @@ public class TalonFXSubsystem extends SubsystemBase {
   public TalonFXSubsystem(
       final TalonFXSubsystemConfiguration config, final TalonFXSubsystemGoal defaultGoal) {
     this.config = config;
-    master =
-        new TalonFX(config.masterConstants.device.id, config.masterConstants.device.canbus);
+    master = new TalonFX(config.masterConstants.device.id, config.masterConstants.device.canbus);
     slaves = new TalonFX[config.slaveConstants.length];
     slaveConfigs = new TalonFXConfiguration[config.slaveConstants.length];
     if (config.cancoderConstants != null) {
       cancoder =
-          new CANcoder(
-              config.cancoderConstants.device.id, config.cancoderConstants.device.canbus);
+          new CANcoder(config.cancoderConstants.device.id, config.cancoderConstants.device.canbus);
       CANcoderConfiguration cancoderConfig = config.cancoderConstants.config;
       DeviceConfig.configureCANcoder(config.name + " CANcoder", cancoder, cancoderConfig);
     }
@@ -319,8 +311,7 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     for (int i = 0; i < slaves.length; ++i) {
       slaves[i] =
-          new TalonFX(
-              config.slaveConstants[i].device.id, config.slaveConstants[i].device.canbus);
+          new TalonFX(config.slaveConstants[i].device.id, config.slaveConstants[i].device.canbus);
 
       TalonFX slave = slaves[i];
       TalonFXConfiguration slaveConfig = new TalonFXConfiguration();
@@ -366,30 +357,32 @@ public class TalonFXSubsystem extends SubsystemBase {
       simFeedforwardSup = () -> 0.0;
     }
 
-    if(defaultGoal != null){
+    if (defaultGoal != null) {
       goal = defaultGoal;
       setDefaultCommand(applyGoalCommand(goal));
     }
 
-    if(config.logPrefix == null){
+    if (config.logPrefix == null) {
       config.logPrefix = "Subsystems/" + config.name + "/";
       logPrefix = config.logPrefix;
     } else {
       logPrefix = config.logPrefix;
     }
 
-    if(config.debugMode && shouldSimulate()){
+    if (config.debugMode && shouldSimulate()) {
       SmartDashboard.putNumber(config.name + " kP", simController.getP());
       SmartDashboard.putNumber(config.name + " kI", simController.getI());
       SmartDashboard.putNumber(config.name + " kD", simController.getD());
-      SmartDashboard.putNumber(config.name + " Velocity", simController.getConstraints().maxVelocity); 
-      SmartDashboard.putNumber(config.name + " Acceleration", simController.getConstraints().maxAcceleration);
+      SmartDashboard.putNumber(
+          config.name + " Velocity", simController.getConstraints().maxVelocity);
+      SmartDashboard.putNumber(
+          config.name + " Acceleration", simController.getConstraints().maxAcceleration);
     }
 
     System.out.println("[Init] " + config.name + " initialization complete!");
   }
 
-  public TalonFXSubsystem(TalonFXSubsystemConfiguration config){
+  public TalonFXSubsystem(TalonFXSubsystemConfiguration config) {
     this(config, null);
   }
 
@@ -528,7 +521,9 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized double getPosition() {
-    return shouldSimulate() ? simPosition / config.simConstants.gearing  : masterPositionSignal.refresh().getValueAsDouble();
+    return shouldSimulate()
+        ? simPosition / config.simConstants.gearing
+        : masterPositionSignal.refresh().getValueAsDouble();
   }
 
   public synchronized double getRotorVelocity() {
@@ -536,7 +531,9 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized double getVelocity() {
-    return shouldSimulate() ? simVelocity / config.simConstants.gearing : masterVelocitySignal.refresh().getValueAsDouble();
+    return shouldSimulate()
+        ? simVelocity / config.simConstants.gearing
+        : masterVelocitySignal.refresh().getValueAsDouble();
   }
 
   public synchronized double getSetpoint() {
@@ -548,14 +545,12 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized double getError() {
-    if(goal != null){
+    if (goal != null) {
       return inVelocityMode
-      ? goal.target().getAsDouble() - getVelocity()
-      : goal.target().getAsDouble() - getPosition();
+          ? goal.target().getAsDouble() - getVelocity()
+          : goal.target().getAsDouble() - getPosition();
     } else {
-      return inVelocityMode
-      ? setpoint - getVelocity()
-      : setpoint - getPosition();
+      return inVelocityMode ? setpoint - getVelocity() : setpoint - getPosition();
     }
   }
 
@@ -578,9 +573,7 @@ public class TalonFXSubsystem extends SubsystemBase {
         inVelocityMode
             ? goal.target().getAsDouble() - getVelocity()
             : goal.target().getAsDouble() - getPosition();
-    return inVelocityMode
-        ? Math.abs(error) <= absTolerance
-        : Math.abs(error) <= absTolerance;
+    return inVelocityMode ? Math.abs(error) <= absTolerance : Math.abs(error) <= absTolerance;
   }
 
   public synchronized boolean isActive() {
@@ -588,18 +581,23 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized Command applyGoalCommand(TalonFXSubsystemGoal goal) {
-    return run(() -> applyGoal(goal)).beforeStarting(Commands.runOnce(() -> simController.reset(getPosition(), getVelocity())).onlyIf(() -> shouldSimulate())
-    ).withName(config.name + " Apply Goal " + goal.toString());
+    return run(() -> applyGoal(goal))
+        .beforeStarting(
+            Commands.runOnce(() -> simController.reset(getPosition(), getVelocity()))
+                .onlyIf(() -> shouldSimulate()))
+        .withName(config.name + " Apply Goal " + goal.toString());
   }
 
   public synchronized void applyGoal(TalonFXSubsystemGoal goal) {
     this.goal = goal;
     switch (goal.controlType()) {
       case MOTION_MAGIC_POSITION:
-        setSetpointMotionMagicPosition(goal.target().getAsDouble(), goal.feedForward().getAsDouble());
+        setSetpointMotionMagicPosition(
+            goal.target().getAsDouble(), goal.feedForward().getAsDouble());
         break;
       case MOTION_MAGIC_VELOCITY:
-        setSetpointMotionMagicVelocity(goal.target().getAsDouble(), goal.feedForward().getAsDouble());
+        setSetpointMotionMagicVelocity(
+            goal.target().getAsDouble(), goal.feedForward().getAsDouble());
         break;
       case POSITION:
         setSetpointPosition(goal.target().getAsDouble(), goal.feedForward().getAsDouble());
@@ -629,13 +627,77 @@ public class TalonFXSubsystem extends SubsystemBase {
         .withName("applyVoltage");
   }
 
-  public synchronized Command applyControlCommand(ControlRequest control){
+  public synchronized Command applyControlCommand(ControlRequest control) {
     return run(() -> setMaster(control)).withName("applyControl");
+  }
+
+  public synchronized Command tuningCommand(TalonFXSubsystemGoal goal) {
+    return run(
+        () -> {
+          if (SmartDashboard.getBoolean("Apply Gains", false)) {
+            if (shouldSimulate()) {
+              simController.setP(
+                  SmartDashboard.getNumber(config.name + " kP", simController.getP()));
+              simController.setI(
+                  SmartDashboard.getNumber(config.name + " kI", simController.getI()));
+              simController.setD(
+                  SmartDashboard.getNumber(config.name + " kD", simController.getD()));
+
+              simController.setConstraints(
+                  new Constraints(
+                      SmartDashboard.getNumber(
+                          config.name + " Velocity", simController.getConstraints().maxVelocity),
+                      SmartDashboard.getNumber(
+                          config.name + " Acceleration",
+                          simController.getConstraints().maxAcceleration)));
+              DogLog.log(
+                  logPrefix + "TuningPositionReference", simController.getSetpoint().position);
+              DogLog.log(
+                  logPrefix + "TuningVelocityReference", simController.getSetpoint().velocity);
+            } else {
+              master
+                  .getConfigurator()
+                  .apply(
+                      masterConfig.withSlot0(
+                          masterConfig
+                              .Slot0
+                              .withKP(
+                                  SmartDashboard.getNumber(
+                                      config.name + " kP", masterConfig.Slot0.kP))
+                              .withKI(
+                                  SmartDashboard.getNumber(
+                                      config.name + " kI", masterConfig.Slot0.kI))
+                              .withKD(
+                                  SmartDashboard.getNumber(
+                                      config.name + " kD", masterConfig.Slot0.kD))
+                              .withKS(
+                                  SmartDashboard.getNumber(
+                                      config.name + " kS", masterConfig.Slot0.kS))
+                              .withKV(
+                                  SmartDashboard.getNumber(
+                                      config.name + " kV", masterConfig.Slot0.kV))
+                              .withKA(
+                                  SmartDashboard.getNumber(
+                                      config.name + " kA", masterConfig.Slot0.kA))
+                              .withKG(
+                                  SmartDashboard.getNumber(
+                                      config.name + " kG", masterConfig.Slot0.kG))));
+              DogLog.log(
+                  logPrefix + "TuningPositionReference",
+                  master.getClosedLoopReference(true).getValueAsDouble());
+              DogLog.log(
+                  logPrefix + "TuningVelocityReference",
+                  master.getClosedLoopReferenceSlope(true).getValueAsDouble());
+            }
+            SmartDashboard.putBoolean("Apply Gains", false);
+          }
+          applyGoal(goal);
+        });
   }
 
   public synchronized void setDutyCycle(double dutyCycle, double dutyCycleFeedforward) {
     setMaster(dutyCycleRequest.withOutput(dutyCycle + dutyCycleFeedforward));
-    if(shouldSimulate()){
+    if (shouldSimulate()) {
       simulationThread.setSimVoltage(() -> (dutyCycle * 12) + dutyCycleFeedforward);
     }
   }
@@ -699,7 +761,8 @@ public class TalonFXSubsystem extends SubsystemBase {
             : positionRequest.withPosition(position).withFeedForward(voltageFeedForward);
     setMaster(control);
     if (shouldSimulate()) {
-      simulationThread.setSimVoltage(() -> simController.calculate(getPosition(), position) + voltageFeedForward);
+      simulationThread.setSimVoltage(
+          () -> simController.calculate(getPosition(), position) + voltageFeedForward);
     }
   }
 
@@ -713,7 +776,8 @@ public class TalonFXSubsystem extends SubsystemBase {
             : velocityRequest.withVelocity(velocity).withFeedForward(voltageFeedForward);
     setMaster(control);
     if (shouldSimulate()) {
-      simulationThread.setSimVoltage(() -> simController.calculate(getVelocity(), velocity) + voltageFeedForward);
+      simulationThread.setSimVoltage(
+          () -> simController.calculate(getVelocity(), velocity) + voltageFeedForward);
     }
   }
 
@@ -751,7 +815,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     }
   }
 
-  protected void setGoal(TalonFXSubsystemGoal goal){
+  protected void setGoal(TalonFXSubsystemGoal goal) {
     this.goal = goal;
   }
 
@@ -764,7 +828,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     if (config.logTelemetry) {
       outputTelemetry();
     }
-    if(goal != null){
+    if (goal != null) {
       DogLog.log(logPrefix + "Goal", goal.toString());
       DogLog.log(logPrefix + "GoalTarget", goal.target().getAsDouble());
     }
@@ -773,19 +837,13 @@ public class TalonFXSubsystem extends SubsystemBase {
     if (getCurrentCommand() != null) {
       DogLog.log(logPrefix + "ActiveCommand", getCurrentCommand().getName());
     }
-    if(config.debugMode && shouldSimulate()){
-      simController.setP(SmartDashboard.getNumber(config.name + " kP", simController.getP()));
-      simController.setI(SmartDashboard.getNumber(config.name + " kI", simController.getI()));
-      simController.setD(SmartDashboard.getNumber(config.name + " kD", simController.getD()));
-      simController.setConstraints(new Constraints(SmartDashboard.getNumber(config.name + " Velocity", simController.getConstraints().maxVelocity), SmartDashboard.getNumber(config.name + " Acceleration", simController.getConstraints().maxAcceleration)));
-      DogLog.log(logPrefix + "ControllerPosition", simController.getSetpoint().position);
-      DogLog.log(logPrefix + "ControllerVelocity", simController.getSetpoint().velocity);
-    }
   }
 
   @Override
   public void simulationPeriodic() {
-    if (config.simConstants != null && !config.simConstants.useSeparateThread() && !config.useCustomSimCallback) {
+    if (config.simConstants != null
+        && !config.simConstants.useSeparateThread()
+        && !config.useCustomSimCallback) {
       simulationThread.update();
     }
   }
@@ -793,7 +851,9 @@ public class TalonFXSubsystem extends SubsystemBase {
   public void outputTelemetry() {
     DogLog.log(
         logPrefix + "AppliedVolts",
-        shouldSimulate() ? simulationThread.getSimVoltage().getAsDouble() + simFeedforwardSup.getAsDouble() : master.getMotorVoltage().getValueAsDouble());
+        shouldSimulate()
+            ? simulationThread.getSimVoltage().getAsDouble() + simFeedforwardSup.getAsDouble()
+            : master.getMotorVoltage().getValueAsDouble());
     DogLog.log(logPrefix + "Position", getPosition());
     DogLog.log(logPrefix + "Velocity", new double[] {getVelocity(), getVelocity() * 60.0});
     DogLog.log(logPrefix + "Rotor Position", getRotorPosition());
@@ -803,7 +863,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     DogLog.log(logPrefix + "Supply Current", master.getSupplyCurrent().getValueAsDouble());
     DogLog.log(logPrefix + "Setpoint", getSetpoint());
     DogLog.log(logPrefix + "Error", getError());
-    if(goal != null){
+    if (goal != null) {
       DogLog.log(logPrefix + "At Goal?", atGoal());
     }
     DogLog.log(logPrefix + "In Velocity Mode", inVelocityMode);

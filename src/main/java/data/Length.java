@@ -66,7 +66,7 @@ public class Length implements StructSerializable {
     return new Length(this.inches / scalar.inches);
   }
 
-  public Length squared(){
+  public Length squared() {
     return new Length(this.inches * this.inches);
   }
 
@@ -88,7 +88,7 @@ public class Length implements StructSerializable {
 
   @Override
   public boolean equals(Object obj) {
-      return this.inches == ((Length)obj).inches;
+    return this.inches == ((Length) obj).inches;
   }
 
   public static final LengthStruct struct = new LengthStruct();

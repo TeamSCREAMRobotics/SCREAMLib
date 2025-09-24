@@ -39,7 +39,7 @@ public class LimelightVision {
     return LimelightHelpers.getLatency_Capture(limelight.name);
   }
 
-  public static double getLatency(Limelight limelight){
+  public static double getLatency(Limelight limelight) {
     return getLatency_Pipeline(limelight) + getLatency_Capture(limelight);
   }
 
@@ -58,8 +58,9 @@ public class LimelightVision {
     return Length.fromMeters(height_diff / Math.tan(goal_theta));
   }
 
-  public static Length get3D_DistanceToTarget(Limelight limelight){
-    return Length.fromMeters(LimelightHelpers.getTargetPose3d_CameraSpace(limelight.name).getTranslation().getNorm());
+  public static Length get3D_DistanceToTarget(Limelight limelight) {
+    return Length.fromMeters(
+        LimelightHelpers.getTargetPose3d_CameraSpace(limelight.name).getTranslation().getNorm());
   }
 
   public static Rotation2d getAngleToTargetTXBased(Limelight limelight) {
