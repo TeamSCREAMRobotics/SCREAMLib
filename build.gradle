@@ -4,26 +4,22 @@ plugins {
     id 'maven-publish'
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+version = '25.0.1'
+group = 'com.github.TeamSCREAMRobotics'
+
+repositories {
+    mavenCentral()
+    maven { url "https://frcmaven.wpi.edu/artifactory/release" }
 }
 
-allprojects {
-    group = 'com.github.TeamSCREAMRobotics'
-    version = 'local'
-
-    repositories {
-        mavenLocal()
-        jcenter()
-        maven {url 'https://jitpack.io'}
-        maven { url "https://frcmaven.wpi.edu/artifactory/release" }
-    }
-
-    dependencies {
+dependencies {
         annotationProcessor wpi.java.deps.wpilibAnnotations()
         implementation wpi.java.deps.wpilib()
-        implementation wpi.java.vendor.java()
+
+        implementation 'com.github.jonahsnider:doglog:2025.3.0'
+        implementation 'com.pathplanner.lib:PathplannerLib-java:2025.2.4'
+        implementation 'com.ctre.phoenix6:wpiapi-java:25.3.1'
+        implementation 'edu.wpi.first.wpilibNewCommands:wpilibNewCommands-java:2025.+'
 
         nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)
         nativeDebug wpi.java.vendor.jniDebug(wpi.platforms.desktop)
@@ -33,22 +29,32 @@ allprojects {
         nativeRelease wpi.java.vendor.jniRelease(wpi.platforms.desktop)
         simulationRelease wpi.sim.enableRelease()
     }
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 publishing {
     publications {
         maven(MavenPublication) {
+            groupId = 'com.github.TeamSCREAMRobotics'
+            artifactId = 'SCREAMLib'
+            version = '25.0.1'
 		    from components.java
         }
     }
     repositories{
-        mavenLocal()
+        maven {
+            name = "localDir"
+            url = "file://${project.buildDir}/repo/maven"
+        }
     }
 }
 
-wrapper {
-    gradleVersion = "7.3.3"
-    distributionType = Wrapper.DistributionType.ALL
+task prepareVendorDep(type: Copy) {
+    from 'vendordeps'
+    into 'build/repo'
+    include '*.json'
 }
-
-build.dependsOn(publishToMavenLocal)
+build.dependsOn(prepareVendorDep)

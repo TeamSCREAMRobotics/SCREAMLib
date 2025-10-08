@@ -1,30 +1,16 @@
 # SCREAMLib
-[![](https://jitpack.io/v/TeamSCREAMRobotics/SCREAMLib.svg)](https://jitpack.io/#TeamSCREAMRobotics/SCREAMLib)
+[![Build](https://github.com/mashed26/SCREAMLibVendorDep/actions/workflows/maven-publish.yml/badge.svg?branch=main)](https://github.com/mashed26/SCREAMLibVendorDep/actions/workflows/maven-publish.yml)
+[![Github Page](https://img.shields.io/website?label=Page&logo=github&up_message=online&down_message=offline&url=https%3A%2F%2Fstremio.github.io%2Fstremio-web%2F)](https://mashed26.github.io/SCREAMLibVendorDep/)
 
 Common code/libraries for robot projects
 
-To install the latest version of this library add the following to your ```build.gradle``` file:
+To install the latest version of this library, right click ```build.gradle``` and select ```Manage Vendor Libraries``` . Then click on ```Install new libraries (Online)``` and a textbox should appear. Paste in the URL then press enter.
 
-   ```gradle
-   allprojects {
-       repositories {
-           mavenLocal()
-           jcenter()
-           maven {url 'https://jitpack.io'}
-       }
-   }
-   dependencies {
-         implementation 'com.github.TeamSCREAMRobotics:SCREAMLib:main-SNAPSHOT'
-   }
-   configurations.all {
-       resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
-   }
-   ```
-
-## Development
-
-For development, clone this repository locally to make edits. To use the local version on dependent projects, use the following instead:
-
-```gradle
-implementation 'com.github.TeamSCREAMRobotics:SCREAMLib:local'
+```url
+https://mashed26.github.io/SCREAMLibVendorDep/SCREAMLib.json
 ```
+
+## Required Dependencies 
+- CTRE Pheonix6
+- Pathplanner
+- Doglog
