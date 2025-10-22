@@ -14,3 +14,9 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - CTRE Pheonix6
 - Pathplanner
 - Doglog
+
+## Using the the lib locally
+
+```gradle
+implementation 'com.github.TeamSCREAMRobotics:SCREAMLib:25.0.2'
+```

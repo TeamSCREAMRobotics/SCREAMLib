@@ -1,10 +1,10 @@
 plugins {
     id 'java'
-    id "edu.wpi.first.GradleRIO" version "latest.release"
+    id "edu.wpi.first.GradleRIO" version "2025.3.2"
     id 'maven-publish'
 }
 
-version = '25.0.1'
+version = '25.0.2'
 group = 'com.github.TeamSCREAMRobotics'
 
 repositories {
@@ -40,7 +40,7 @@ publishing {
         maven(MavenPublication) {
             groupId = 'com.github.TeamSCREAMRobotics'
             artifactId = 'SCREAMLib'
-            version = '25.0.1'
+            version = '25.0.2'
 		    from components.java
         }
     }
@@ -49,6 +49,7 @@ publishing {
             name = "localDir"
             url = "file://${project.buildDir}/repo/maven"
         }
+        mavenLocal()
     }
 }
 
@@ -57,4 +58,4 @@ task prepareVendorDep(type: Copy) {
     into 'build/repo'
     include '*.json'
 }
-build.dependsOn(prepareVendorDep)
+build.dependsOn(prepareVendorDep, publishToMavenLocal)
