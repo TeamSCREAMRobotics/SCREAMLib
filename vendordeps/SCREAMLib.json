@@ -8,6 +8,23 @@
     "https://teamscreamrobotics.github.io/SCREAMLib/maven/"
   ],
   "jsonUrl": "https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json",
+  "requires": [
+        {
+          "uuid": "e995de00-2c64-4df5-8831-c1441420ff19",
+          "errorMessage": "Phoenix6 is required",
+          "onlineUrl": "https://maven.ctr-electronics.com/release/com/ctre/phoenix6/latest/Phoenix6-frc2025-latest.json"
+        },
+        {
+          "uuid": "1b42324f-17c6-4875-8e77-1c312bc8c786",
+          "errorMessage": "Pathplanner is required",
+          "onlineUrl": "https://3015rangerrobotics.github.io/pathplannerlib/PathplannerLib.json"
+        },
+        {
+          "uuid": "65592ce1-2251-4a31-8e4b-2df20dacebe4",
+          "errorMessage": "DogLog is required",
+          "onlineUrl": "https://doglog.dev/vendordep.json"
+        }
+    ],
   "javaDependencies": [
     {
       "groupId": "com.github.TeamSCREAMRobotics",
