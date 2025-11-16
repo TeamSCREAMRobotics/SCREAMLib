@@ -90,6 +90,6 @@ jobs:
         with:
           tag: ${{ steps.get_gradle_var.outputs.gradle_var }}
           name: Release ${{ steps.get_gradle_var.outputs.gradle_var }}
-          bodyFile: "body.md"
+          bodyFile: "README.md"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
