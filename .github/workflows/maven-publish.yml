@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
   deploy:
     if: github.ref_type == 'tag' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
     needs: build
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     permissions:
         packages: write
