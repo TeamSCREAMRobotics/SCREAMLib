@@ -16,7 +16,8 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - Doglog
 
 ## Using the the lib locally
+Replace {version} with the actual version
 
 ```gradle
-implementation 'com.github.TeamSCREAMRobotics:SCREAMLib:25.0.2'
+implementation 'com.github.TeamSCREAMRobotics:SCREAMLib:{version}'
 ```
