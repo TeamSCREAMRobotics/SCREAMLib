@@ -1,24 +1,14 @@
-# SCREAMLib
-[![Build](https://github.com/TeamSCREAMRobotics/SCREAMLib/actions/workflows/maven-publish.yml/badge.svg?branch=main)](https://github.com/TeamSCREAMRobotics/SCREAMLib/actions/workflows/maven-publish.yml) [![Github Page](https://img.shields.io/website?label=Page&logo=github&up_message=online&down_message=offline&url=https%3A%2F%2Fstremio.github.io%2Fstremio-web%2F)](https://teamscreamrobotics.github.io/SCREAMLib/)
+# SCREAMLib Legacy Branch
 
-Common code/libraries for robot projects
+Common code/libraries for robot projects, before updated to vendordep.
 
-To install the latest version of this library, right click ```build.gradle``` and select ```Manage Vendor Libraries``` . Then click on ```Install new libraries (Online)``` and a textbox should appear. Paste in the URL then press enter.
+## Purpose 
+This branch exists for projects that use SCREAMLib locally and uses the file structure before [59c0949](https://github.com/TeamSCREAMRobotics/SCREAMLib/commit/59c0949ecd2cd7bfd7b96eeccdf7edfaa00f2da0)
 
-If you already have it installed, to update right click on ```build.gradle``` and select ```Check for Updates```. On the popup, click on SCREAMLib, then select ```OK```.
+## Use
 
-```url
-https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
-```
-
-## Required Dependencies 
-- CTRE Pheonix6
-- Pathplanner
-- Doglog
-
-## Using the the lib locally
-Replace {version} with the actual version
+For use, clone this repository locally to make edits. To use the local version on dependent projects, use the following instead:
 
 ```gradle
-implementation 'com.github.TeamSCREAMRobotics:SCREAMLib:{version}'
+implementation 'com.github.TeamSCREAMRobotics:SCREAMLib:local'
 ```

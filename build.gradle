@@ -1,41 +1,29 @@
 plugins {
     id 'java'
-    id "edu.wpi.first.GradleRIO" version "2025.3.2"
+    id "edu.wpi.first.GradleRIO" version "latest.release"
     id 'maven-publish'
-    id 'java-library'
-}
-
-def ver = '25.0.4'
-
-version = ver
-group = 'com.github.TeamSCREAMRobotics'
-
-ext {
-    verNum = ver
 }
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
-    withSourcesJar()
 }
 
-repositories {
-    mavenLocal()
-    mavenCentral()
-    maven { url "https://frcmaven.wpi.edu/artifactory/release" }
-}
+allprojects {
+    group = 'com.github.TeamSCREAMRobotics'
+    version = 'local'
 
-ext.localMavenURL = file("${project.buildDir}/repo/maven")
+    repositories {
+        mavenLocal()
+        jcenter()
+        maven {url 'https://jitpack.io'}
+        maven { url "https://frcmaven.wpi.edu/artifactory/release" }
+    }
 
-dependencies {
+    dependencies {
         annotationProcessor wpi.java.deps.wpilibAnnotations()
         implementation wpi.java.deps.wpilib()
-
-        implementation 'com.github.jonahsnider:doglog:2025.3.0'
-        implementation 'com.pathplanner.lib:PathplannerLib-java:2025.2.4'
-        implementation 'com.ctre.phoenix6:wpiapi-java:25.3.1'
-        implementation 'edu.wpi.first.wpilibNewCommands:wpilibNewCommands-java:2025.+'
+        implementation wpi.java.vendor.java()
 
         nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)
         nativeDebug wpi.java.vendor.jniDebug(wpi.platforms.desktop)
@@ -44,56 +32,23 @@ dependencies {
         nativeRelease wpi.java.deps.wpilibJniRelease(wpi.platforms.desktop)
         nativeRelease wpi.java.vendor.jniRelease(wpi.platforms.desktop)
         simulationRelease wpi.sim.enableRelease()
+    }
 }
 
 publishing {
     publications {
         maven(MavenPublication) {
-            groupId = 'com.github.TeamSCREAMRobotics'
-            artifactId = 'SCREAMLib'
-            version = ver
 		    from components.java
-
-            pom {
-                name = 'SCREAMLib'
-                description = 'SCREAM Robotics Java Library'
-                url = 'https://github.com/TeamSCREAMRobotics/SCREAMLib'
-                }
         }
     }
     repositories{
-        maven {
-            name = "localDir"
-            url = "file://${project.buildDir}/repo/maven"
-        }
         mavenLocal()
     }
 }
 
-task printGradleVariable {
-        doLast {
-            println "::set-output name=gradle_var::${project.verNum}"
-        }
-    }
-
-task cleanRepo(type: Delete) {
-    delete localMavenURL
+wrapper {
+    gradleVersion = "7.3.3"
+    distributionType = Wrapper.DistributionType.ALL
 }
 
-clean.dependsOn cleanRepo
-
-task prepareVendorDep(type: Copy) {
-    from 'vendordeps'
-    into 'build/repo'
-    include '*.json'
-}
-
-build.dependsOn(prepareVendorDep, publishToMavenLocal)
-
-publish.dependsOn build
-
-tasks.withType(JavaCompile) {
-    options.compilerArgs.add '-parameters'
-    options.encoding = 'UTF-8'
-    options.fork = true
-}
+build.dependsOn(publishToMavenLocal)
