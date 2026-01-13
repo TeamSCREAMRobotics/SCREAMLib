@@ -39,6 +39,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.ControlModeValue;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
+import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
 /**
@@ -322,7 +323,7 @@ public class TalonFXSubsystem extends SubsystemBase {
       slave.setControl(
           new Follower(
               config.masterConstants.device.id,
-              config.slaveConstants[i].invert != config.masterConstants.invert));
+              (config.slaveConstants[i].invert != config.masterConstants.invert) ? MotorAlignmentValue.Opposed : MotorAlignmentValue.Aligned));
 
       configSlave(slave, slaveConfig);
     }

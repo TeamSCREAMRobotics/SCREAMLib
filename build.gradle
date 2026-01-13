@@ -1,11 +1,11 @@
 plugins {
     id 'java'
-    id "edu.wpi.first.GradleRIO" version "2025.3.2"
+    id "edu.wpi.first.GradleRIO" version "2026.1.1"
     id 'maven-publish'
     id 'java-library'
 }
 
-def ver = '25.0.4'
+def ver = '26.0.0'
 
 version = ver
 group = 'com.github.TeamSCREAMRobotics'
@@ -32,10 +32,10 @@ dependencies {
         annotationProcessor wpi.java.deps.wpilibAnnotations()
         implementation wpi.java.deps.wpilib()
 
-        implementation 'com.github.jonahsnider:doglog:2025.3.0'
-        implementation 'com.pathplanner.lib:PathplannerLib-java:2025.2.4'
-        implementation 'com.ctre.phoenix6:wpiapi-java:25.3.1'
-        implementation 'edu.wpi.first.wpilibNewCommands:wpilibNewCommands-java:2025.+'
+        implementation 'com.github.jonahsnider:doglog:2026.2.0'
+        implementation 'com.pathplanner.lib:PathplannerLib-java:2026.1.1'
+        implementation 'com.ctre.phoenix6:wpiapi-java:26.1.0'
+        implementation 'edu.wpi.first.wpilibNewCommands:wpilibNewCommands-java:2026.+'
 
         nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)
         nativeDebug wpi.java.vendor.jniDebug(wpi.platforms.desktop)

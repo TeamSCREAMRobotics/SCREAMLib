@@ -46,6 +46,7 @@ public class PathSequence {
         }
     }
 
+    @SuppressWarnings("unused")
     private static boolean isRunningPath = false;
     private static Command getPathCommand(PathPlannerPath path){
         return AutoBuilder.followPath(path).beforeStarting(() -> isRunningPath = true).finallyDo(() -> isRunningPath = false);

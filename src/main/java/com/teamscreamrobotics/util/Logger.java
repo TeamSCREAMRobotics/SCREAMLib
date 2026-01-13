@@ -110,13 +110,13 @@ public class Logger extends DogLog {
   }
 
   // Enum
-  public static void log(String key, Enum<?> value, double frequencySeconds) {
+  public static <E extends Enum<E>> void log(String key, E value, double frequencySeconds) {
     if (shouldLog(key, frequencySeconds)) {
       DogLog.log(key, value);
     }
   }
 
-  public static void log(String key, Enum<?> value) {
+  public static <E extends Enum<E>> void log(String key, E value) {
     log(key, value, DEFAULT_LOG_FREQUENCY);
   }
 
@@ -201,13 +201,13 @@ public class Logger extends DogLog {
   }
 
   // Enum array
-  public static void log(String key, Enum<?>[] value, double frequencySeconds) {
+  public static <E extends Enum<E>> void log(String key, E[] value, double frequencySeconds) {
     if (shouldLog(key, frequencySeconds)) {
       DogLog.log(key, value);
     }
   }
 
-  public static void log(String key, Enum<?>[] value) {
+  public static <E extends Enum<E>> void log(String key, E[] value) {
     log(key, value, DEFAULT_LOG_FREQUENCY);
   }
 
@@ -303,13 +303,13 @@ public class Logger extends DogLog {
   }
 
   // Enum
-  public static void logDebug(String key, Enum<?> value, double frequencySeconds) {
+  public static <E extends Enum<E>> void logDebug(String key, E value, double frequencySeconds) {
     if (debug && shouldLog(key, frequencySeconds)) {
       log(key, value);
     }
   }
 
-  public static void logDebug(String key, Enum<?> value) {
+  public static <E extends Enum<E>> void logDebug(String key, E value) {
     logDebug(key, value, DEFAULT_LOG_FREQUENCY);
   }
 
@@ -394,13 +394,13 @@ public class Logger extends DogLog {
   }
 
   // Enum array
-  public static void logDebug(String key, Enum<?>[] value, double frequencySeconds) {
+  public static <E extends Enum<E>> void logDebug(String key, E[] value, double frequencySeconds) {
     if (debug && shouldLog(key, frequencySeconds)) {
       log(key, value);
     }
   }
 
-  public static void logDebug(String key, Enum<?>[] value) {
+  public static <E extends Enum<E>> void logDebug(String key, E[] value) {
     logDebug(key, value, DEFAULT_LOG_FREQUENCY);
   }
 
