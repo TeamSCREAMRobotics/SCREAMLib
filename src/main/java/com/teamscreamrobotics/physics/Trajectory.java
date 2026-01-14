@@ -259,6 +259,10 @@ public class Trajectory {
     public static double getTimeOfFlight() {
         List<TrajectoryPoint> traj = getDesiredTrajectory();
         
+        if (traj.isEmpty()) {
+            return 0;
+        }
+        
         double closestTime = 0;
         double minDist = Double.MAX_VALUE;
         
@@ -301,7 +305,7 @@ public class Trajectory {
         
         // Simulation parameters
         double dt = 0.001; // Time step (1ms)
-        double maxTime = 5.0; // Maximum simulation time
+        double maxTime = 10.0; // Increased max time for longer shots
         
         // Initial state
         double t = 0;
@@ -317,6 +321,12 @@ public class Trajectory {
         while (t < maxTime && y >= 0) {
             // Calculate air resistance
             double v = Math.sqrt(vx * vx + vy * vy);
+            
+            // Avoid division by zero for very small velocities
+            if (v < 0.001) {
+                break;
+            }
+            
             double dragForce = 0.5 * AIR_DENSITY * dragCoeff * area * v * v;
             
             // Acceleration due to drag (opposite to velocity)
@@ -335,7 +345,7 @@ public class Trajectory {
             t += dt;
             
             // Store point every 10ms for efficiency
-            if ((int)(t * 100) % 1 == 0) {
+            if ((int)(t * 100) % 10 == 0) { // Changed from 1 to 10 for 10ms intervals
                 points.add(new TrajectoryPoint(t, x, y, vx, vy));
             }
         }
@@ -357,8 +367,23 @@ public class Trajectory {
             double area,
             double dragCoeff) {
         
+        // Quick validation
+        if (shotVelocity <= 0 || targetDistance <= 0) {
+            return -1;
+        }
+        
         double bestAngle = -1;
         double minError = Double.MAX_VALUE;
+        
+        // Calculate minimum velocity needed for basic physics (ignoring air resistance for bounds)
+        double minVelocity = Math.sqrt(
+            GRAVITY * targetDistance / Math.sin(2 * Math.toRadians(45))
+        );
+        
+        // If velocity is too low, return -1
+        if (shotVelocity < minVelocity * 0.7) {
+            return -1;
+        }
         
         // Search for best angle (coarse)
         for (double angle = 10; angle <= 80; angle += 1.0) {
@@ -366,36 +391,65 @@ public class Trajectory {
                 shotVelocity, angle, robotVelocity, robotAngle, 
                 targetDistance, initialHeight, mass, area, dragCoeff);
             
+            if (traj.isEmpty()) {
+                continue;
+            }
+            
+            
             for (TrajectoryPoint p : traj) {
-                double distError = Math.abs(p.x - targetDistance);
+                // Weight distance error more heavily since we're shooting at a vertical target
+                double distError = Math.abs(p.x - targetDistance) * 2.0;
                 double heightError = Math.abs(p.y - targetHeight);
                 double totalError = distError + heightError;
                 
-                if (totalError < minError) {
+                // Additional penalty if we're past the target
+                if (p.x > targetDistance && p.y > 0) {
+                    totalError += 5.0;
+                }
+                
+                if (totalError < minError && p.y >= 0) {
                     minError = totalError;
                     bestAngle = angle;
                 }
             }
         }
         
-        // Fine-tune
+        // Fine-tune if we found a candidate
         if (bestAngle > 0) {
+            double bestFineAngle = bestAngle;
+            double fineMinError = minError;
+            
             for (double angle = bestAngle - 1; angle <= bestAngle + 1; angle += 0.1) {
                 List<TrajectoryPoint> traj = calculateTrajectory(
                     shotVelocity, angle, robotVelocity, robotAngle, 
                     targetDistance, initialHeight, mass, area, dragCoeff);
                 
+                if (traj.isEmpty()) {
+                    continue;
+                }
+                
                 for (TrajectoryPoint p : traj) {
-                    double distError = Math.abs(p.x - targetDistance);
+                    double distError = Math.abs(p.x - targetDistance) * 2.0;
                     double heightError = Math.abs(p.y - targetHeight);
                     double totalError = distError + heightError;
                     
-                    if (totalError < minError) {
-                        minError = totalError;
-                        bestAngle = angle;
+                    if (p.x > targetDistance && p.y > 0) {
+                        totalError += 5.0;
+                    }
+                    
+                    if (totalError < fineMinError && p.y >= 0) {
+                        fineMinError = totalError;
+                        bestFineAngle = angle;
                     }
                 }
             }
+            
+            bestAngle = bestFineAngle;
+        }
+        
+        // If error is too large, return -1
+        if (minError > 1.0) { // 1 meter total error threshold
+            return -1;
         }
         
         return bestAngle;
@@ -424,12 +478,16 @@ public class Trajectory {
                 velocity, shotAngle, robotVelocity, robotAngle, 
                 targetDistance, initialHeight, mass, area, dragCoeff);
             
+            if (traj.isEmpty()) {
+                continue;
+            }
+            
             for (TrajectoryPoint p : traj) {
                 double distError = Math.abs(p.x - targetDistance);
                 double heightError = Math.abs(p.y - targetHeight);
                 double totalError = distError + heightError;
                 
-                if (totalError < minError) {
+                if (totalError < minError && p.y >= 0) {
                     minError = totalError;
                     bestVelocity = velocity;
                 }
@@ -443,12 +501,16 @@ public class Trajectory {
                     velocity, shotAngle, robotVelocity, robotAngle, 
                     targetDistance, initialHeight, mass, area, dragCoeff);
                 
+                if (traj.isEmpty()) {
+                    continue;
+                }
+                
                 for (TrajectoryPoint p : traj) {
                     double distError = Math.abs(p.x - targetDistance);
                     double heightError = Math.abs(p.y - targetHeight);
                     double totalError = distError + heightError;
                     
-                    if (totalError < minError) {
+                    if (totalError < minError && p.y >= 0) {
                         minError = totalError;
                         bestVelocity = velocity;
                     }
