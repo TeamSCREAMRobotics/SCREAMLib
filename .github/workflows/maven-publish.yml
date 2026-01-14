@@ -90,7 +90,7 @@ jobs:
         with:
           tag: ${{ steps.get_gradle_var.outputs.gradle_var }}
           name: Release ${{ steps.get_gradle_var.outputs.gradle_var }}
-          bodyFile: "README.md"
+          bodyFile: ".github/release_body.md"
           artifacts: "vendordeps/SCREAMLib.json"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
