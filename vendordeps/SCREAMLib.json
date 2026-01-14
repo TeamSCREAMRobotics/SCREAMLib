@@ -1,7 +1,7 @@
 {
   "fileName": "SCREAMLib.json",
   "name": "SCREAMLib",
-  "version": "26.1.1",
+  "version": "26.1.2",
   "uuid": "c7466d88-af7c-4c5a-b9fd-113abcfb0105",
   "frcYear": "2026",
   "mavenUrls": [
@@ -12,7 +12,7 @@
     {
       "groupId": "com.github.TeamSCREAMRobotics",
       "artifactId": "SCREAMLib",
-      "version": "26.1.1"
+      "version": "26.1.2"
     }
   ],
   "jniDependencies": [],
