@@ -101,8 +101,8 @@ public class LimelightVision {
     LimelightHelpers.setCropWindow(limelight.name, cropXMin, cropXMax, cropYMin, cropYMax);
   }
 
-  public static void setThrottle(int skipFrames){
-    NetworkTable llt = NetworkTableInstance.getDefault().getTable("LimeLight");
+  public static void setThrottle(int skipFrames, Limelight limelight){
+    NetworkTable llt = NetworkTableInstance.getDefault().getTable(limelight.name);
     llt.getEntry("throttle_set").setNumber(skipFrames);
   }
 }
