@@ -3,6 +3,9 @@ package com.teamscreamrobotics.vision;
 import com.teamscreamrobotics.data.Length;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableInstance;
+
 import com.teamscreamrobotics.vision.LimelightHelpers.PoseEstimate;
 
 public class LimelightVision {
@@ -96,5 +99,10 @@ public class LimelightVision {
   public static void setCropWindow(
       double cropXMin, double cropXMax, double cropYMin, double cropYMax, Limelight limelight) {
     LimelightHelpers.setCropWindow(limelight.name, cropXMin, cropXMax, cropYMin, cropYMax);
+  }
+
+  public static void setThrottle(int skipFrames){
+    NetworkTable llt = NetworkTableInstance.getDefault().getTable("LimeLight");
+    llt.getEntry("throttle_set").setNumber(skipFrames);
   }
 }

@@ -19,3 +19,5 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 ## Changes
 - Trajectory
   - overflows
+- LimelightVision
+  - Added Throttle setting (requires Limelight 4)
