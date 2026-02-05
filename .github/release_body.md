@@ -17,7 +17,5 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - Doglog
 
 ## Changes
-- Trajectory
-  - overflows
-- LimelightVision
-  - Added Throttle setting (requires Limelight 4), variable limelight
+- TalonFXSubsystem
+  - fixed reset position bug

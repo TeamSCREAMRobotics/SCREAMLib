@@ -749,7 +749,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   public synchronized void resetPosition(double position) {
-    master.setPosition(0.0);
+    master.setPosition(position);
   }
 
   @Override
