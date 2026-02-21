@@ -5,7 +5,7 @@ plugins {
     id 'java-library'
 }
 
-def ver = '26.1.5'
+def ver = '26.1.6'
 
 version = ver
 group = 'com.github.TeamSCREAMRobotics'
@@ -34,7 +34,7 @@ dependencies {
 
         implementation 'com.github.jonahsnider:doglog:2026.2.0'
         implementation 'com.pathplanner.lib:PathplannerLib-java:2026.1.1'
-        implementation 'com.ctre.phoenix6:wpiapi-java:26.1.0'
+        implementation 'com.ctre.phoenix6:wpiapi-java:26.1.1'
         implementation 'edu.wpi.first.wpilibNewCommands:wpilibNewCommands-java:2026.+'
 
         nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)

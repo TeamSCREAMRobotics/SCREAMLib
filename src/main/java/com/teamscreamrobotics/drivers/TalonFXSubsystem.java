@@ -199,6 +199,9 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     public double maxUnitsLimit = 0.0;
     public double minUnitsLimit = 0.0;
+
+    public double peakForwardTorqueCurrent = 0.0;
+    public double peakReverseTorqueCurrent = 0.0;
   }
 
   protected final TalonFXSubsystemConfiguration config;
@@ -309,6 +312,9 @@ public class TalonFXSubsystem extends SubsystemBase {
     masterConfig.Feedback.SensorToMechanismRatio = config.sensorToMechRatio;
     masterConfig.Feedback.RotorToSensorRatio = config.rotorToSensorRatio;
     masterConfig.MotorOutput.NeutralMode = config.neutralMode;
+
+    masterConfig.TorqueCurrent.PeakForwardTorqueCurrent = config.peakForwardTorqueCurrent;
+    masterConfig.TorqueCurrent.PeakReverseTorqueCurrent = config.peakReverseTorqueCurrent;
 
     for (int i = 0; i < slaves.length; ++i) {
       slaves[i] =

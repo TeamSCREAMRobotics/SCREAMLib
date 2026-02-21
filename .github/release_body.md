@@ -18,4 +18,4 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 
 ## Changes
 - TalonFXSubsystem
-  - fixed reset position bug
+  - added torque current config
