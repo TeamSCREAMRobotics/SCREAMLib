@@ -405,57 +405,90 @@ public class Trajectory {
      * Internal required velocity calculator
      */
     private static double calculateRequiredVelocity(
-            double shotAngle,
-            double robotVelocity,
-            double robotAngle,
-            double targetDistance,
-            double targetHeight,
-            double initialHeight,
-            double mass,
-            double area,
-            double dragCoeff) {
-        
-        double bestVelocity = -1;
-        double minError = Double.MAX_VALUE;
-        
-        // Search for best velocity (coarse)
-        for (double velocity = 1.0; velocity <= 30.0; velocity += 0.5) {
-            List<TrajectoryPoint> traj = calculateTrajectory(
-                velocity, shotAngle, robotVelocity, robotAngle, 
-                targetDistance, initialHeight, mass, area, dragCoeff);
-            
-            for (TrajectoryPoint p : traj) {
-                double distError = Math.abs(p.x - targetDistance);
-                double heightError = Math.abs(p.y - targetHeight);
-                double totalError = distError + heightError;
-                
-                if (totalError < minError) {
-                    minError = totalError;
-                    bestVelocity = velocity;
-                }
-            }
-        }
-        
-        // Fine-tune
-        if (bestVelocity > 0) {
-            for (double velocity = bestVelocity - 0.5; velocity <= bestVelocity + 0.5; velocity += 0.05) {
-                List<TrajectoryPoint> traj = calculateTrajectory(
-                    velocity, shotAngle, robotVelocity, robotAngle, 
-                    targetDistance, initialHeight, mass, area, dragCoeff);
-                
-                for (TrajectoryPoint p : traj) {
-                    double distError = Math.abs(p.x - targetDistance);
-                    double heightError = Math.abs(p.y - targetHeight);
-                    double totalError = distError + heightError;
-                    
-                    if (totalError < minError) {
-                        minError = totalError;
-                        bestVelocity = velocity;
-                    }
-                }
-            }
-        }
-        
-        return bestVelocity;
+        double shotAngle,
+        double robotVelocity,
+        double robotAngle,
+        double targetDistance,
+        double targetHeight,
+        double initialHeight,
+        double mass,
+        double area,
+        double dragCoeff) {
+
+    double lo = 0.5;
+    double hi = 50.0;
+
+    // At hi, ball should arrive well above targetHeight.
+    // At lo, ball either doesn't reach target (NaN) or arrives below targetHeight.
+    // If hi still can't get the ball high enough, no solution exists.
+    double hiHeight = getHeightAtDistance(hi, shotAngle, robotVelocity, robotAngle,
+            targetDistance, initialHeight, mass, area, dragCoeff);
+    if (Double.isNaN(hiHeight) || hiHeight < targetHeight) {
+        return -1;
     }
+
+    // Binary search: increase velocity when ball undershoots (or doesn't reach),
+    // decrease when it overshoots.
+    for (int i = 0; i < 60; i++) {
+        double mid = (lo + hi) / 2.0;
+        double h = getHeightAtDistance(mid, shotAngle, robotVelocity, robotAngle,
+                targetDistance, initialHeight, mass, area, dragCoeff);
+
+        if (!Double.isNaN(h) && Math.abs(h - targetHeight) < 0.0005) {
+            return mid;
+        }
+
+        // NaN means ball didn't reach targetDistance — needs more velocity
+        if (Double.isNaN(h) || h < targetHeight) {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+
+    return (lo + hi) / 2.0;
+}
+
+private static double getHeightAtDistance(
+        double shotVelocity,
+        double shotAngle,
+        double robotVelocity,
+        double robotAngle,
+        double targetDistance,
+        double initialHeight,
+        double mass,
+        double area,
+        double dragCoeff) {
+
+    double shotAngleRad = Math.toRadians(shotAngle);
+    double robotAngleRad = Math.toRadians(robotAngle);
+
+    double vx = shotVelocity * Math.cos(shotAngleRad) + robotVelocity * Math.cos(robotAngleRad);
+    double vy = shotVelocity * Math.sin(shotAngleRad) + robotVelocity * Math.sin(robotAngleRad);
+
+    double dt = 0.001;
+    double x = 0, y = initialHeight;
+    double prevX = x, prevY = y;
+
+    for (double t = 0; t < 5.0 && y >= 0; t += dt) {
+        prevX = x;
+        prevY = y;
+
+        double v = Math.sqrt(vx * vx + vy * vy);
+        double drag = 0.5 * AIR_DENSITY * dragCoeff * area * v * v / mass;
+
+        vx += -drag * (vx / v) * dt;
+        vy += (-GRAVITY - drag * (vy / v)) * dt;
+        x  += vx * dt;
+        y  += vy * dt;
+
+        // Early exit: interpolate height at exact target distance
+        if (x >= targetDistance) {
+            double frac = (targetDistance - prevX) / (x - prevX);
+            return prevY + frac * (y - prevY);
+        }
+    }
+
+    return Double.NaN; // Ball didn't reach target distance
+}
 }

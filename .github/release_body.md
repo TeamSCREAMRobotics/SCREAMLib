@@ -17,5 +17,5 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - Doglog
 
 ## Changes
-- TalonFXSubsystem
-  - added torque current config
+- Trajectory
+  - optimized getvelocity
