@@ -154,6 +154,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     public boolean logTelemetry = false;
     public boolean debugMode = false;
     public boolean useCustomSimCallback = false;
+    public boolean slavesAsFollower = true;
 
     public String logPrefix = null;
 
@@ -194,11 +195,11 @@ public class TalonFXSubsystem extends SubsystemBase {
     public int supplyCurrentLimit = 40; // amps
     public boolean enableSupplyCurrentLimit = false;
 
-    public int statorCurrentLimit = 40; // amps
-    public boolean enableStatorCurrentLimit = false;
+    public int statorCurrentLimit = 120; // amps
+    public boolean enableStatorCurrentLimit = true;
 
-    public double maxUnitsLimit = 0.0;
-    public double minUnitsLimit = 0.0;
+    public Double maxUnitsLimit = null;
+    public Double minUnitsLimit = null;
 
     public double peakForwardTorqueCurrent = 0.0;
     public double peakReverseTorqueCurrent = 0.0;
@@ -227,8 +228,8 @@ public class TalonFXSubsystem extends SubsystemBase {
   protected final StatusSignal<Angle> masterRotorPositionSignal;
   protected final StatusSignal<AngularVelocity> masterRotorVelocitySignal;
 
-  protected final double forwardSoftLimitRotations;
-  protected final double reverseSoftLimitRotations;
+  protected double forwardSoftLimitRotations;
+  protected double reverseSoftLimitRotations;
 
   protected final DutyCycleOut dutyCycleRequest;
   protected final VoltageOut voltageRequest;
@@ -283,13 +284,17 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     masterConfig.ClosedLoopGeneral.ContinuousWrap = config.continuousWrap;
 
-    forwardSoftLimitRotations = (config.maxUnitsLimit - config.softLimitDeadband);
-    masterConfig.SoftwareLimitSwitch.ForwardSoftLimitThreshold = forwardSoftLimitRotations;
-    masterConfig.SoftwareLimitSwitch.ForwardSoftLimitEnable = config.minUnitsLimit != 0.0;
-
-    reverseSoftLimitRotations = (config.minUnitsLimit + config.softLimitDeadband);
-    masterConfig.SoftwareLimitSwitch.ReverseSoftLimitThreshold = reverseSoftLimitRotations;
-    masterConfig.SoftwareLimitSwitch.ReverseSoftLimitEnable = config.minUnitsLimit != 0.0;
+    if(config.maxUnitsLimit != null){
+      forwardSoftLimitRotations = (config.maxUnitsLimit - config.softLimitDeadband);
+      masterConfig.SoftwareLimitSwitch.ForwardSoftLimitThreshold = forwardSoftLimitRotations;
+      masterConfig.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
+    }
+    
+    if(config.minUnitsLimit != null){
+      reverseSoftLimitRotations = (config.minUnitsLimit + config.softLimitDeadband);
+      masterConfig.SoftwareLimitSwitch.ReverseSoftLimitThreshold = reverseSoftLimitRotations;
+      masterConfig.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
+    }
 
     masterConfig.Slot0 = config.slot0;
     masterConfig.Slot1 = config.slot1;
@@ -326,10 +331,12 @@ public class TalonFXSubsystem extends SubsystemBase {
 
       slaveConfig.MotorOutput.Inverted = config.slaveConstants[i].invert;
       slaveConfig.MotorOutput.NeutralMode = config.neutralMode;
-      slave.setControl(
+      if(config.slavesAsFollower){
+        slave.setControl(
           new Follower(
-              config.masterConstants.device.id,
-              (config.slaveConstants[i].invert != config.masterConstants.invert) ? MotorAlignmentValue.Opposed : MotorAlignmentValue.Aligned));
+            config.masterConstants.device.id,
+            (config.slaveConstants[i].invert != config.masterConstants.invert) ? MotorAlignmentValue.Opposed : MotorAlignmentValue.Aligned));
+      }
 
       configSlave(slave, slaveConfig);
     }
@@ -719,6 +726,11 @@ public class TalonFXSubsystem extends SubsystemBase {
   public synchronized void setMaster(ControlRequest control) {
     if (config.codeEnabled && !isEStopped) {
       master.setControl(control);
+      if(!config.slavesAsFollower){
+        for(TalonFX slave : slaves){
+          slave.setControl(control);
+        }
+      }
     }
   }
 

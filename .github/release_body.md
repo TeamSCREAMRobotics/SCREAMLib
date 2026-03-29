@@ -17,5 +17,10 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - Doglog
 
 ## Changes
-- Trajectory
-  - optimized getvelocity
+- TalonFXSubsystem
+  - Added slavesAsFollower configuration
+  - Fixed soft limits bug
+  - Added default stator current limit
+
+- PhoenixSwerveHelper
+  - Removed redundant enableContinuousInput usage

@@ -69,7 +69,6 @@ public class PhoenixSwerveHelper {
 
     this.snapController = snapConstants.getPhoenixPIDController(-Math.PI, Math.PI);
     fieldCentricFacingAngle.HeadingController = snapController;
-    fieldCentricFacingAngle.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
 
     this.headingCorrectionController = headingCorrectionConstants.getPIDController(-Math.PI, Math.PI);
 
