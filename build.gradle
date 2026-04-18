@@ -1,11 +1,11 @@
 plugins {
     id 'java'
-    id "edu.wpi.first.GradleRIO" version "2026.1.1"
+    id "edu.wpi.first.GradleRIO" version "2026.2.1"
     id 'maven-publish'
     id 'java-library'
 }
 
-def ver = '26.1.8'
+def ver = '26.1.9'
 
 version = ver
 group = 'com.github.TeamSCREAMRobotics'
@@ -24,6 +24,7 @@ repositories {
     mavenLocal()
     mavenCentral()
     maven { url "https://frcmaven.wpi.edu/artifactory/release" }
+    maven { url 'https://jitpack.io' }
 }
 
 ext.localMavenURL = file("${project.buildDir}/repo/maven")
@@ -36,6 +37,7 @@ dependencies {
         implementation 'com.pathplanner.lib:PathplannerLib-java:2026.1.1'
         implementation 'com.ctre.phoenix6:wpiapi-java:26.1.1'
         implementation 'edu.wpi.first.wpilibNewCommands:wpilibNewCommands-java:2026.+'
+        implementation 'com.github.edanliahovetsky:BLine-Lib:v0.8.4'
 
         nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)
         nativeDebug wpi.java.vendor.jniDebug(wpi.platforms.desktop)

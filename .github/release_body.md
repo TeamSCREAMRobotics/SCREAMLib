@@ -15,12 +15,9 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - CTRE Pheonix6
 - Pathplanner
 - Doglog
+- BLine
 
 ## Changes
-- TalonFXSubsystem
-  - Added slavesAsFollower configuration
-  - Fixed soft limits bug
-  - Added default stator current limit
-
-- PhoenixSwerveHelper
-  - Removed redundant enableContinuousInput usage
+- Added BLinePathSequence
+- Changed PathSequence to PPPathSequence
+- PPPathSequence fixes
