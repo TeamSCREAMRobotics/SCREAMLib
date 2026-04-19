@@ -18,6 +18,11 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - BLine
 
 ## Changes
-- Added BLinePathSequence
-- Changed PathSequence to PPPathSequence
-- PPPathSequence fixes
+- BLinePathSequence
+  - Fixed flipping functionality
+  - Added mirror() method for flipping across field width
+  - Added docs
+
+- PPPathSequence
+  - Added mirror() method for flipping across field width
+  - Added docs
