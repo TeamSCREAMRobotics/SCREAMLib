@@ -4,18 +4,26 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import java.util.List;
 
+/** An arbitrary convex or concave 2D polygon zone on the field used for pose containment checks. */
 public class PolygonalPoseArea {
 
   private final List<Translation2d> vertices;
 
+  /**
+   * Creates a polygonal zone from an ordered list of vertices.
+   *
+   * @param vertices polygon corners in field coordinates (meters), ordered consistently (CW or CCW)
+   */
   public PolygonalPoseArea(List<Translation2d> vertices) {
     this.vertices = vertices;
   }
 
+  /** Returns {@code true} if the pose's translation is inside the polygon. */
   public boolean contains(Pose2d pose) {
     return contains(pose.getTranslation());
   }
 
+  /** Returns {@code true} if the point is inside the polygon (ray-casting algorithm). */
   public boolean contains(Translation2d point) {
     int n = vertices.size();
     boolean result = false;
@@ -32,6 +40,7 @@ public class PolygonalPoseArea {
     return result;
   }
 
+  /** Returns the geometric centroid of the polygon in field coordinates. */
   public Translation2d getCenter() {
     double centerX = 0.0;
     double centerY = 0.0;

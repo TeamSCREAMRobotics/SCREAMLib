@@ -6,15 +6,29 @@ import com.teamscreamrobotics.data.Length;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 
+/** A regular hexagonal 2D zone on the field used for pose containment checks. */
 public class HexagonalPoseArea {
     private Translation2d origin;
     private Length radius;
     private Translation2d[] vertices;
 
+    /**
+     * Creates an axis-aligned regular hexagon.
+     *
+     * @param origin center of the hexagon in field coordinates
+     * @param radius circumradius (center to vertex) of the hexagon
+     */
     public HexagonalPoseArea(Translation2d origin, Length radius) {
         this(origin, radius, Rotation2d.kZero);
     }
 
+    /**
+     * Creates a regular hexagon with an angular offset applied to all vertices.
+     *
+     * @param origin   center of the hexagon in field coordinates
+     * @param radius   circumradius (center to vertex)
+     * @param rotation rotation to apply to the hexagon
+     */
     public HexagonalPoseArea(Translation2d origin, Length radius, Rotation2d rotation) {
         this.origin = origin;
         this.radius = radius;
@@ -40,6 +54,7 @@ public class HexagonalPoseArea {
         }
     }
 
+    /** Returns the six vertex positions of the hexagon in field coordinates. */
     public Translation2d[] getVertices() {
         return vertices;
     }

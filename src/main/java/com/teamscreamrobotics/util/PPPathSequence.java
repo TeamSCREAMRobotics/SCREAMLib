@@ -17,6 +17,10 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 
+/**
+ * Ordered sequence of PathPlanner paths for autonomous routines.
+ * Handles alliance-aware starting pose flipping and provides cursor-based path traversal.
+ */
 public class PPPathSequence {
     private final ArrayList<PathPlannerPath> list = new ArrayList<>();
     private final String[] pathNames;

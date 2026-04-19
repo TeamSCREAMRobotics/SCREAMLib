@@ -40,8 +40,11 @@ public class Trajectory {
         FUEL(0.215, 0.150, 0.47),     // REBUILT FUEL: 0.448-0.500 lbs, 5.91" diameter
         CUSTOM(0.200, 0.150, 0.47);   // Custom game piece - use setCustomGamePiece() to configure
         
-        public final double mass;      // kg
-        public final double diameter;  // meters
+        /** Mass of the game piece in kilograms. */
+        public final double mass;
+        /** Diameter of the game piece in meters. */
+        public final double diameter;
+        /** Aerodynamic drag coefficient (sphere ≈ 0.47). */
         public final double dragCoefficient;
         
         GamePiece(double mass, double diameter, double dragCoefficient) {
@@ -50,6 +53,7 @@ public class Trajectory {
             this.dragCoefficient = dragCoefficient;
         }
         
+        /** Returns the cross-sectional area of the game piece in m² (used for drag calculation). */
         public double getArea() {
             return Math.PI * Math.pow(diameter / 2, 2);
         }
@@ -73,41 +77,49 @@ public class Trajectory {
         private double customDiameter = 0.150;
         private double customDragCoeff = 0.47;
         
+        /** Sets the muzzle velocity of the shot in m/s. */
         public TrajectoryConfig setShotVelocity(double velocity) {
             this.shotVelocity = velocity;
             return this;
         }
         
+        /** Sets the launch angle in degrees (above horizontal). */
         public TrajectoryConfig setShotAngle(double angle) {
             this.shotAngle = angle;
             return this;
         }
         
+        /** Sets the robot's forward velocity in m/s (added to shot velocity for moving shots). */
         public TrajectoryConfig setRobotVelocity(double velocity) {
             this.robotVelocity = velocity;
             return this;
         }
         
+        /** Sets the robot's travel direction in degrees relative to the shot direction. */
         public TrajectoryConfig setRobotAngle(double angle) {
             this.robotAngle = angle;
             return this;
         }
         
+        /** Sets the horizontal distance to the target in meters. */
         public TrajectoryConfig setTargetDistance(double distance) {
             this.targetDistance = distance;
             return this;
         }
         
+        /** Sets the height of the target opening in meters. */
         public TrajectoryConfig setTargetHeight(double height) {
             this.targetHeight = height;
             return this;
         }
         
+        /** Sets the launch height above the ground in meters. */
         public TrajectoryConfig setInitialHeight(double height) {
             this.initialHeight = height;
             return this;
         }
         
+        /** Sets the game piece type to use for physics calculations. */
         public TrajectoryConfig setGamePiece(GamePiece piece) {
             this.gamePiece = piece;
             return this;
@@ -163,12 +175,26 @@ public class Trajectory {
      * Represents a point in the trajectory
      */
     public static class TrajectoryPoint {
+        /** Time since launch in seconds. */
         public final double time;
+        /** Horizontal distance traveled in meters. */
         public final double x;
+        /** Height above ground in meters. */
         public final double y;
+        /** Horizontal velocity component in m/s. */
         public final double vx;
+        /** Vertical velocity component in m/s. */
         public final double vy;
-        
+
+        /**
+         * Creates a trajectory sample point.
+         *
+         * @param time time since launch (s)
+         * @param x    horizontal position (m)
+         * @param y    vertical position (m)
+         * @param vx   horizontal velocity (m/s)
+         * @param vy   vertical velocity (m/s)
+         */
         public TrajectoryPoint(double time, double x, double y, double vx, double vy) {
             this.time = time;
             this.x = x;
