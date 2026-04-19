@@ -27,7 +27,9 @@ public class SimWrapper implements SimInterface {
   DoubleSupplier velocitySupplier;
 
   /**
-   * Wraps a {@link DCMotorSim}. Position and velocity are in rotations and RPS (post-gearing).
+   * Wraps a {@link DCMotorSim}. Position and velocity are scaled by the model's internal gearing
+   * to produce rotor rotations/RPS. Use the explicit-gearing overload if {@code sim} was built
+   * with {@code gearing = 1.0} and gearing is tracked separately.
    *
    * @param sim the DC motor simulation model
    */
@@ -36,6 +38,20 @@ public class SimWrapper implements SimInterface {
     voltageConsumer = (value) -> sim.setInput(0, value);
     positionSupplier = () -> sim.getAngularPositionRotations() * sim.getGearing();
     velocitySupplier = () -> (sim.getAngularVelocityRPM() / 60.0) * sim.getGearing();
+  }
+
+  /**
+   * Wraps a {@link DCMotorSim} with an explicit gear ratio. Use this when the sim model was
+   * constructed with {@code gearing = 1.0} and the ratio is tracked in {@code TalonFXSubsystemSimConstants}.
+   *
+   * @param sim     the DC motor simulation model
+   * @param gearing gear ratio from mechanism to motor (motor rotations per mechanism rotation)
+   */
+  public SimWrapper(DCMotorSim sim, double gearing) {
+    updateConsumer = sim::update;
+    voltageConsumer = (value) -> sim.setInput(0, value);
+    positionSupplier = () -> sim.getAngularPositionRotations() * gearing;
+    velocitySupplier = () -> (sim.getAngularVelocityRPM() / 60.0) * gearing;
   }
 
   /**
@@ -68,7 +84,8 @@ public class SimWrapper implements SimInterface {
   }
 
   /**
-   * Wraps a {@link FlywheelSim}. Position always returns {@code 0.0}; velocity is in RPS post-gearing.
+   * Wraps a {@link FlywheelSim}. Position always returns {@code 0.0}; velocity is in RPS scaled
+   * by the model's internal gearing. Use the explicit-gearing overload if the model gearing is 1.0.
    *
    * @param sim the flywheel simulation model
    */
@@ -77,6 +94,20 @@ public class SimWrapper implements SimInterface {
     voltageConsumer = (value) -> sim.setInput(0, value);
     positionSupplier = () -> 0.0;
     velocitySupplier = () -> (sim.getAngularVelocityRPM() / 60.0) * sim.getGearing();
+  }
+
+  /**
+   * Wraps a {@link FlywheelSim} with an explicit gear ratio. Use this when the sim model was
+   * constructed with {@code gearing = 1.0} and the ratio is tracked in {@code TalonFXSubsystemSimConstants}.
+   *
+   * @param sim     the flywheel simulation model
+   * @param gearing gear ratio from mechanism to motor
+   */
+  public SimWrapper(FlywheelSim sim, double gearing) {
+    updateConsumer = sim::update;
+    voltageConsumer = (value) -> sim.setInput(0, value);
+    positionSupplier = () -> 0.0;
+    velocitySupplier = () -> (sim.getAngularVelocityRPM() / 60.0) * gearing;
   }
 
   @Override

@@ -113,7 +113,9 @@ public class TalonFXSubsystem extends SubsystemBase {
 
     ControlType controlType();
 
-    DoubleSupplier feedForward();
+    default DoubleSupplier feedForward() {
+      return () -> 0.0;
+    }
   }
 
   public record TalonFXSubsystemSimConstants(
@@ -123,7 +125,7 @@ public class TalonFXSubsystem extends SubsystemBase {
       boolean useSeparateThread,
       boolean limitVoltage) {
     public TalonFXSubsystemSimConstants(SimWrapper sim, double gearing, PIDController simController) {
-      this(sim, gearing, new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(9999999, 9999999)), false, false);
+      this(sim, gearing, new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(Double.MAX_VALUE, Double.MAX_VALUE)), false, false);
     }
 
     public TalonFXSubsystemSimConstants(SimWrapper sim, double gearing, PIDController simController, double minInput, double maxInput) {
@@ -131,7 +133,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     }
 
     private static ProfiledPIDController createContinuousController(PIDController simController, double minInput, double maxInput) {
-      ProfiledPIDController controller = new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(9999999, 9999999));
+      ProfiledPIDController controller = new ProfiledPIDController(simController.getP(), simController.getI(), simController.getD(), new Constraints(Double.MAX_VALUE, Double.MAX_VALUE));
       controller.enableContinuousInput(minInput, maxInput);
       return controller;
     }
@@ -206,6 +208,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   protected final TalonFXSubsystemConfiguration config;
+  protected final boolean simulating;
   protected final TalonFX master;
   protected final TalonFX[] slaves;
   protected CANcoder cancoder;
@@ -250,10 +253,6 @@ public class TalonFXSubsystem extends SubsystemBase {
     public ControlType controlType() {
       return ControlType.VOLTAGE;
     }
-
-    public DoubleSupplier feedForward() {
-      return () -> 0.0;
-    };
   };
 
   protected double setpoint = 0;
@@ -264,6 +263,12 @@ public class TalonFXSubsystem extends SubsystemBase {
   public TalonFXSubsystem(
       final TalonFXSubsystemConfiguration config, final TalonFXSubsystemGoal defaultGoal) {
     this.config = config;
+    if (config.forceSimulation && config.simConstants == null) {
+      DriverStation.reportError(
+          "Could not force simulation in " + config.name + ", simulation constants were not provided",
+          true);
+    }
+    this.simulating = (Utils.isSimulation() && config.simConstants != null) || config.forceSimulation;
     master =
         new TalonFX(config.masterConstants.device.id, config.masterConstants.device.canbus);
     slaves = new TalonFX[config.slaveConstants.length];
@@ -377,12 +382,7 @@ public class TalonFXSubsystem extends SubsystemBase {
       setDefaultCommand(applyGoalCommand(goal));
     }
 
-    if(config.logPrefix == null){
-      config.logPrefix = "Subsystems/" + config.name + "/";
-      logPrefix = config.logPrefix;
-    } else {
-      logPrefix = config.logPrefix;
-    }
+    logPrefix = config.logPrefix != null ? config.logPrefix : "Subsystems/" + config.name + "/";
 
     if(config.debugMode && shouldSimulate()){
       SmartDashboard.putNumber(config.name + " kP", simController.getP());
@@ -514,15 +514,7 @@ public class TalonFXSubsystem extends SubsystemBase {
   }
 
   protected boolean shouldSimulate() {
-    if (config.forceSimulation && config.simConstants == null) {
-      DriverStation.reportError(
-          "Could not force simulation in "
-              + config.name
-              + ", simulation constants were not provided",
-          true);
-      return false;
-    }
-    return (Utils.isSimulation() && config.simConstants != null) || config.forceSimulation;
+    return simulating;
   }
 
   public synchronized ControlModeValue getControlMode() {
@@ -584,9 +576,7 @@ public class TalonFXSubsystem extends SubsystemBase {
         inVelocityMode
             ? goal.target().getAsDouble() - getVelocity()
             : goal.target().getAsDouble() - getPosition();
-    return inVelocityMode
-        ? Math.abs(error) <= absTolerance
-        : Math.abs(error) <= absTolerance;
+    return Math.abs(error) <= absTolerance;
   }
 
   public synchronized boolean isActive() {
@@ -766,6 +756,10 @@ public class TalonFXSubsystem extends SubsystemBase {
     this.goal = goal;
   }
 
+  public void setSimFeedforwardSupplier(DoubleSupplier supplier) {
+    simFeedforwardSup = supplier;
+  }
+
   public synchronized void resetPosition(double position) {
     master.setPosition(position);
   }
@@ -825,8 +819,8 @@ public class TalonFXSubsystem extends SubsystemBase {
     stop();
     setNeutralMode(NeutralModeValue.Coast);
     isEStopped = true;
-    getCurrentCommand().cancel();
-    setVoltage(0);
+    Command current = getCurrentCommand();
+    if (current != null) current.cancel();
   }
 
   public void stop() {

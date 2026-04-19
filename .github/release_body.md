@@ -18,4 +18,4 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - BLine
 
 ## Changes
-- Added more docs
+- TalonFXSubsystem fixes

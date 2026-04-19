@@ -4,7 +4,6 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.Timer;
-import java.util.function.BiConsumer;
 import java.util.function.DoubleSupplier;
 
 import com.teamscreamrobotics.drivers.TalonFXSubsystem.TalonFXSubsystemSimConstants;
@@ -24,7 +23,7 @@ public class SimulationThread {
 
   private DoubleSupplier simVoltage = () -> 0.0;
 
-  private BiConsumer<Double, Double> stateConsumer;
+  private SimStateCallback stateConsumer;
 
   private boolean useSeparateThread;
 
@@ -36,13 +35,13 @@ public class SimulationThread {
    * {@code true} the notifier is started immediately.
    *
    * @param constants     simulation constants from the subsystem configuration
-   * @param stateConsumer called with {@code (position, velocity)} after each sim step
+   * @param stateConsumer called with {@code (position, velocity)} after each sim step (no boxing)
    * @param periodSec     update period in seconds
    * @param name          thread/notifier name for diagnostics
    */
   public SimulationThread(
       TalonFXSubsystemSimConstants constants,
-      BiConsumer<Double, Double> stateConsumer,
+      SimStateCallback stateConsumer,
       double periodSec,
       String name) {
     this.name = name;
@@ -51,6 +50,7 @@ public class SimulationThread {
     this.limitVoltage = constants.limitVoltage();
     this.stateConsumer = stateConsumer;
     this.periodSec = periodSec;
+    this.lastSimTime = Timer.getFPGATimestamp();
     if (useSeparateThread) {
       startSimThread(name);
     }
@@ -89,9 +89,8 @@ public class SimulationThread {
     deltaTime = currentTime - lastSimTime;
     lastSimTime = currentTime;
 
+    simInterface.setInputVoltage(simVoltage.getAsDouble());
     simInterface.update(deltaTime);
-    simInterface.setInputVoltage(
-        simVoltage.getAsDouble());
     stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
   }
 
@@ -108,9 +107,8 @@ public class SimulationThread {
               deltaTime = currentTime - lastSimTime;
               lastSimTime = currentTime;
 
+              simInterface.setInputVoltage(simVoltage.getAsDouble());
               simInterface.update(deltaTime);
-              simInterface.setInputVoltage(
-                  simVoltage.getAsDouble());
               stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
             });
     simNotifier.setName(name);
