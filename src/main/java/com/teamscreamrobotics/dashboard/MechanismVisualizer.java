@@ -6,6 +6,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.BiConsumer;
 
+/**
+ * A WPILib subsystem that periodically updates one or more {@link Mechanism}s and publishes
+ * their measured and setpoint {@link Mechanism2d} widgets via a telemetry consumer.
+ */
 public class MechanismVisualizer extends SubsystemBase {
 
   public Mechanism2d MEASURED_MECHANISM;
@@ -16,6 +20,14 @@ public class MechanismVisualizer extends SubsystemBase {
 
   private final ArrayList<Mechanism> mechanisms;
 
+  /**
+   * Creates the visualizer and initializes all mechanisms.
+   *
+   * @param measuredMechanism  the {@link Mechanism2d} widget for actual state (typically logged red)
+   * @param setpointMechanism  the {@link Mechanism2d} widget for setpoint state (typically logged green)
+   * @param telemetryConsumer  called each periodic cycle with (measured, setpoint) to publish data
+   * @param mechanisms         one or more {@link Mechanism}s to update and display
+   */
   public MechanismVisualizer(
       Mechanism2d measuredMechanism,
       Mechanism2d setpointMechanism,
@@ -28,6 +40,7 @@ public class MechanismVisualizer extends SubsystemBase {
     this.mechanisms.forEach((mech) -> mech.initialize(MEASURED_MECHANISM, SETPOINT_MECHANISM));
   }
 
+  /** Enables or disables periodic updates. Disable to suppress logging overhead when not needed. */
   public void setEnabled(boolean enabled) {
     this.enabled = enabled;
   }

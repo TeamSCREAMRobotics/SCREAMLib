@@ -9,6 +9,10 @@ import java.util.function.DoubleSupplier;
 
 import com.teamscreamrobotics.drivers.TalonFXSubsystem.TalonFXSubsystemSimConstants;
 
+/**
+ * Drives a {@link SimInterface} at a fixed period, either inline (called from {@code periodic()})
+ * or on a dedicated background thread using a WPILib {@link Notifier}.
+ */
 public class SimulationThread {
 
   private String name;
@@ -27,6 +31,15 @@ public class SimulationThread {
   private double periodSec;
   private boolean limitVoltage;
 
+  /**
+   * Creates a simulation thread. If {@link TalonFXSubsystemSimConstants#useSeparateThread()} is
+   * {@code true} the notifier is started immediately.
+   *
+   * @param constants     simulation constants from the subsystem configuration
+   * @param stateConsumer called with {@code (position, velocity)} after each sim step
+   * @param periodSec     update period in seconds
+   * @param name          thread/notifier name for diagnostics
+   */
   public SimulationThread(
       TalonFXSubsystemSimConstants constants,
       BiConsumer<Double, Double> stateConsumer,
@@ -43,6 +56,12 @@ public class SimulationThread {
     }
   }
 
+  /**
+   * Sets the voltage supplier used to drive the simulation each step.
+   * If {@link TalonFXSubsystemSimConstants#limitVoltage()} is {@code true}, the value is clamped to ±12V.
+   *
+   * @param simVoltage supplier returning the desired input voltage
+   */
   public void setSimVoltage(DoubleSupplier simVoltage) {
     this.simVoltage =
         () ->
@@ -51,10 +70,15 @@ public class SimulationThread {
                 : simVoltage.getAsDouble();
   }
 
+  /** Returns the current sim voltage supplier (already wrapped with optional clamping). */
   public DoubleSupplier getSimVoltage() {
     return simVoltage;
   }
 
+  /**
+   * Manually steps the simulation. Must only be called when not using a separate thread;
+   * logs a DS error and returns early if the notifier is active.
+   */
   public void update() {
     if (useSeparateThread) {
       DriverStation.reportError(
@@ -71,6 +95,11 @@ public class SimulationThread {
     stateConsumer.accept(simInterface.getPosition(), simInterface.getVelocity());
   }
 
+  /**
+   * Starts the background {@link Notifier} thread at the configured period.
+   *
+   * @param name the notifier thread name
+   */
   public void startSimThread(String name) {
     simNotifier =
         new Notifier(

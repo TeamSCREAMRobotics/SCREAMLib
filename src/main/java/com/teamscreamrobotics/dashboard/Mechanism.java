@@ -5,6 +5,11 @@ import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
 import java.util.function.Supplier;
 
+/**
+ * A named group of {@link Ligament}s forming a kinematic chain for {@link MechanismVisualizer}.
+ * The first ligament is anchored at a root; subsequent ones chain from their predecessor unless
+ * {@link Ligament#withOverrideAppend(boolean)} is set.
+ */
 public class Mechanism {
 
   public Mechanism2d measured;
@@ -19,6 +24,12 @@ public class Mechanism {
 
   private Ligament[] ligaments;
 
+  /**
+   * Creates a mechanism with the given dashboard key and ordered ligament chain.
+   *
+   * @param key       identifier used as the root name in the {@link Mechanism2d} widget
+   * @param ligaments one or more ligaments, in chain order from root outward
+   */
   public Mechanism(String key, Ligament... ligaments) {
     this.key = key;
     this.ligaments = ligaments;
@@ -43,16 +54,31 @@ public class Mechanism {
     }
   }
 
+  /**
+   * Sets a fixed root position for the mechanism in the 2D widget.
+   *
+   * @param position the constant (x, y) position of the root
+   */
   public Mechanism withStaticPosition(Translation2d position) {
     this.position = () -> position;
     return this;
   }
 
+  /**
+   * Sets a dynamic root position supplier, updated each periodic cycle.
+   *
+   * @param position supplier for the (x, y) root position
+   */
   public Mechanism withDynamicPosition(Supplier<Translation2d> position) {
     this.position = position;
     return this;
   }
 
+  /**
+   * Imperatively overrides the root position with a new fixed value.
+   *
+   * @param position the new (x, y) root position
+   */
   public void setPosition(Translation2d position) {
     this.position = () -> position;
   }

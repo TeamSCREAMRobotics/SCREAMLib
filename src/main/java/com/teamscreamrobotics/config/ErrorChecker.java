@@ -6,7 +6,9 @@ import edu.wpi.first.wpilibj.Timer;
 
 public class ErrorChecker {
 
+  /** Seconds after robot start during which configuration retries are allowed. */
   public static final double BOOT_ALLOWANCE_SECONDS = 3.0;
+  /** Number of configuration attempts before a DS warning is generated. */
   public static final int TRIES_TO_GENERATE_WARNING = 5;
 
   /**

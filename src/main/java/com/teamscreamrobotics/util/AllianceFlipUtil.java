@@ -38,6 +38,46 @@ public final class AllianceFlipUtil {
         : blueValue;
   }
 
+  public static Rotation2d FlippedRotation2d(Rotation2d blueValue) {
+    return get(blueValue, blueValue.plus(Rotation2d.k180deg));
+  }
+
+  public static Rotation3d FlippedRotation3d(Rotation3d blueValue) {
+    return new Rotation3d(
+        blueValue.getX(),
+        blueValue.getY(),
+        FlippedRotation2d(Rotation2d.fromRadians(blueValue.getZ())).getRadians());
+  }
+
+  public static Translation2d FlippedTranslation2d(Translation2d blueValue) {
+    return get(
+        blueValue,
+        new Translation2d(
+            FIELD_LENGTH - blueValue.getX(),
+            FIELD_WIDTH - blueValue.getY()));
+  }
+
+  public static Pose2d FlippedPose2d(Pose2d blueValue) {
+    return new Pose2d(
+        FlippedTranslation2d(blueValue.getTranslation()),
+        FlippedRotation2d(blueValue.getRotation()));
+  }
+
+  public static Translation3d FlippedTranslation3d(Translation3d blueValue) {
+    return get(
+        blueValue,
+        new Translation3d(
+            FIELD_LENGTH - blueValue.getX(),
+            FIELD_WIDTH - blueValue.getY(),
+            blueValue.getZ()));
+  }
+
+  public static Pose3d FlippedPose3d(Pose3d blueValue) {
+    return new Pose3d(
+        FlippedTranslation3d(blueValue.getTranslation()),
+        FlippedRotation3d(blueValue.getRotation()));
+  }
+
   public static Rotation2d MirroredRotation2d(Rotation2d blueValue) {
     return get(blueValue, Rotation2d.k180deg.minus(blueValue));
   }

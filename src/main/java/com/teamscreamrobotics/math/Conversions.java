@@ -48,14 +48,29 @@ public class Conversions {
     return rpmToRPS(wheelRPM, gearRatio);
   }
 
+  /**
+   * @param rpm          RPM of the mechanism
+   * @param circumference circumference of the wheel in feet
+   * @return linear velocity in feet per second
+   */
   public static double rpmToFTS(double rpm, double circumference) {
     return (circumference * rpm) / 60;
   }
 
+  /**
+   * @param distance      linear distance traveled
+   * @param circumference circumference per rotation
+   * @return number of rotations
+   */
   public static double linearDistanceToRotations(Length distance, Length circumference) {
     return distance.getInches() / circumference.getInches();
   }
 
+  /**
+   * @param rotations     number of rotations
+   * @param circumference circumference per rotation
+   * @return linear distance traveled
+   */
   public static Length rotationsToLinearDistance(double rotations, Length circumference) {
     return circumference.times(rotations);
   }

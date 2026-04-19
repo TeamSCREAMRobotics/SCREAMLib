@@ -143,15 +143,32 @@ public class GeomUtil {
     return new Translation2d(translation.getX(), translation.getZ());
   }
 
+  /**
+   * Creates a {@link Pose3d} from a 2D translation and a Z height, with zero rotation.
+   *
+   * @param translation the XY position
+   * @param z           the height in meters
+   */
   public static Pose3d translationToPose3d(Translation2d translation, double z) {
     return new Pose3d(
         new Translation3d(translation.getX(), translation.getY(), z), new Rotation3d());
   }
 
+  /**
+   * Returns a unit vector in the same direction as {@code translation}.
+   *
+   * @param translation the vector to normalize
+   */
   public static Translation2d normalize(Translation2d translation){
     return new Translation2d(1, translation.getAngle());
   }
 
+  /**
+   * Returns the point in {@code others} nearest to {@code origin} by Euclidean distance.
+   *
+   * @param origin the reference point
+   * @param others the candidate points to search
+   */
   public static Translation2d findClosest(Translation2d origin, Translation2d... others){
     Translation2d closest = null;
     double smallestDistance = Double.MAX_VALUE;

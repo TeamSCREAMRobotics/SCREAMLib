@@ -5,18 +5,33 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 
+/** Two-joint 2D inverse kinematics solver using the law of cosines. */
 public class IKSolver {
 
     private final Length[] jointLengths;
     private final double minDistance;
     private final double maxDistance;
 
+    /**
+     * Creates an IK solver for a two-link arm.
+     *
+     * @param joint1Length length of the first link (shoulder to elbow)
+     * @param joint2Length length of the second link (elbow to end-effector)
+     */
     public IKSolver(Length joint1Length, Length joint2Length) {
         this.jointLengths = new Length[] { joint1Length, joint2Length };
         this.minDistance = Math.abs(joint1Length.minus(joint2Length).getMeters());
         this.maxDistance = joint1Length.plus(joint2Length).getMeters();
     }
 
+    /**
+     * Solves for the joint angles needed to reach {@code target}.
+     * If the target is outside the arm's reachable range it is clamped to the nearest reachable point.
+     *
+     * @param target    the desired end-effector position (meters) relative to the shoulder
+     * @param elbowDown {@code true} for the elbow-down configuration, {@code false} for elbow-up
+     * @return {@code [theta1, theta2]} — shoulder and elbow joint angles
+     */
     public Rotation2d[] solve(Translation2d target, boolean elbowDown) {
         double x = target.getX();
         double y = target.getY();

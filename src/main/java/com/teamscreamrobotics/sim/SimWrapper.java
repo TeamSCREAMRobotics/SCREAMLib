@@ -10,6 +10,10 @@ import java.util.function.DoubleSupplier;
 
 import com.teamscreamrobotics.data.Length;
 
+/**
+ * Adapts WPILib simulation models ({@link DCMotorSim}, {@link ElevatorSim}, etc.) to the
+ * {@link SimInterface} contract, normalizing position and velocity to rotations / rotations-per-second.
+ */
 public class SimWrapper implements SimInterface {
 
   DCMotorSim dcSim;
@@ -22,6 +26,11 @@ public class SimWrapper implements SimInterface {
   DoubleSupplier positionSupplier;
   DoubleSupplier velocitySupplier;
 
+  /**
+   * Wraps a {@link DCMotorSim}. Position and velocity are in rotations and RPS (post-gearing).
+   *
+   * @param sim the DC motor simulation model
+   */
   public SimWrapper(DCMotorSim sim) {
     updateConsumer = sim::update;
     voltageConsumer = (value) -> sim.setInput(0, value);
@@ -29,6 +38,14 @@ public class SimWrapper implements SimInterface {
     velocitySupplier = () -> (sim.getAngularVelocityRPM() / 60.0) * sim.getGearing();
   }
 
+  /**
+   * Wraps an {@link ElevatorSim}. Position and velocity are converted from meters to rotations/RPS
+   * using the spool circumference and gear ratio.
+   *
+   * @param sim               the elevator simulation model
+   * @param spoolCircumference circumference of the elevator spool
+   * @param gearing           gear ratio between motor and spool
+   */
   public SimWrapper(ElevatorSim sim, Length spoolCircumference, double gearing) {
     updateConsumer = sim::update;
     voltageConsumer = (value) -> sim.setInput(0, value);
@@ -36,6 +53,13 @@ public class SimWrapper implements SimInterface {
     velocitySupplier = () -> (sim.getVelocityMetersPerSecond() / spoolCircumference.getMeters()) * gearing;
   }
 
+  /**
+   * Wraps a {@link SingleJointedArmSim}. Position and velocity are converted from radians to
+   * rotations/RPS using the gear ratio.
+   *
+   * @param sim     the arm simulation model
+   * @param gearing gear ratio between motor and arm joint
+   */
   public SimWrapper(SingleJointedArmSim sim, double gearing) {
     updateConsumer = sim::update;
     voltageConsumer = (value) -> sim.setInput(0, value);
@@ -43,6 +67,11 @@ public class SimWrapper implements SimInterface {
     velocitySupplier = () -> Units.radiansToRotations(sim.getVelocityRadPerSec()) * gearing;
   }
 
+  /**
+   * Wraps a {@link FlywheelSim}. Position always returns {@code 0.0}; velocity is in RPS post-gearing.
+   *
+   * @param sim the flywheel simulation model
+   */
   public SimWrapper(FlywheelSim sim) {
     updateConsumer = sim::update;
     voltageConsumer = (value) -> sim.setInput(0, value);
