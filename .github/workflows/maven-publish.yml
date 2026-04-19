@@ -1,8 +1,7 @@
 name: Publish Vendor Dependency
-
 on:
   push:
-    tags: ['v*']
+    tags: ['*']
     branches: [main]
   workflow_dispatch:
 
@@ -12,84 +11,127 @@ permissions:
   id-token: write
 
 jobs:
+  bump-version:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bump version in build.gradle and SCREAMLib.json
+        run: |
+          CURRENT=$(grep -oP "(?<=def ver = ')[\d.]+" build.gradle)
+          echo "Current version: $CURRENT"
+
+          MAJOR=$(echo $CURRENT | cut -d. -f1)
+          MINOR=$(echo $CURRENT | cut -d. -f2)
+          PATCH=$(echo $CURRENT | cut -d. -f3)
+
+          PATCH=$((PATCH + 1))
+          if [ $PATCH -ge 10 ]; then
+            PATCH=0
+            MINOR=$((MINOR + 1))
+          fi
+
+          NEW="$MAJOR.$MINOR.$PATCH"
+          echo "New version: $NEW"
+
+          sed -i "s/def ver = '$CURRENT'/def ver = '$NEW'/" build.gradle
+          sed -i "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW\"/" vendordeps/SCREAMLib.json
+
+      - name: Commit and tag new version
+        run: |
+          NEW=$(grep -oP "(?<=def ver = ')[\d.]+" build.gradle)
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add build.gradle vendordeps/SCREAMLib.json
+          git commit -m "chore: bump version to $NEW"
+          git tag $NEW
+          git push
+          git push origin $NEW
+
   build:
+    needs: bump-version
+    # Only run if bump-version succeeded OR was skipped (because we pushed a tag)
+    if: success() || needs.bump-version.result == 'skipped'
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # If bump-version succeeded, pull the new commit from main. Else pull the tag/branch that triggered this.
+          ref: ${{ needs.bump-version.result == 'success' && 'main' || github.ref }}
+          
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          
+      - name: Make gradlew executable
+        run: chmod +x gradlew
         
-    - name: Make gradlew executable
-      run: chmod +x gradlew
-      
-    - name: Build with Gradle
-      run: ./gradlew build
-      
-    - name: Publish to local repo
-      run: ./gradlew publish
-      
-    - name: Prepare GitHub Pages content
-      run: |
-        mkdir -p public
-        cp -r vendordeps/* public/ || true
-        cp -r build/repo/* public/ || true
-        echo "<h1>SCREAMLib Vendor Dependency</h1>" > public/index.html
-        echo "<p>Available at: <a href='SCREAMLib.json'>SCREAMLib.json</a></p>" >> public/index.html
+      - name: Build with Gradle
+        run: ./gradlew build
         
-    - name: Setup Pages
-      uses: actions/configure-pages@v3
-      
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v4
-      with:
-        path: ./public
+      - name: Publish to local repo
+        run: ./gradlew publish
+        
+      - name: Prepare GitHub Pages content
+        run: |
+          mkdir -p public/maven
+          # Keep vendordep json at the root of the site
+          cp -r vendordeps/* public/ 
+          # Put the actual maven artifacts into the /maven folder to match your JSON
+          cp -r build/repo/* public/maven/ 
+          
+          echo "<h1>SCREAMLib Vendor Dependency</h1>" > public/index.html
+          echo "<p>Available at: <a href='SCREAMLib.json'>SCREAMLib.json</a></p>" >> public/index.html
+          
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./public
 
   deploy:
-    if: github.ref_type == 'tag' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
+    # Require build to actually succeed before trying to deploy
+    if: success() && (github.ref_type == 'tag' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
     needs: build
     runs-on: ubuntu-latest
-
     permissions:
-        packages: write
-        contents: write
-        id-token: write
-        pages: write
-
+      packages: write
+      contents: write
+      id-token: write
+      pages: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
+        with:
+          ref: ${{ needs.bump-version.result == 'success' && 'main' || github.ref }}
+          
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Get Gradle Version Variable
-        id: get_gradle_var
+        
+      - name: Get Version from JSON
+        id: get_version
         run: |
-          ./gradlew printGradleVariable
-
+          VERSION=$(jq -r .version vendordeps/SCREAMLib.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ steps.get_gradle_var.outputs.gradle_var }}
-          name: Release ${{ steps.get_gradle_var.outputs.gradle_var }}
+          tag: ${{ steps.get_version.outputs.version }}
+          name: Release ${{ steps.get_version.outputs.version }}
           bodyFile: ".github/release_body.md"
           artifacts: "vendordeps/SCREAMLib.json"
         env:
