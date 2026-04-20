@@ -18,4 +18,9 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - BLine
 
 ## Changes
-- TalonFXSubsystem fixes
+- BLinePathSequence
+    - Alliance fix
+    - Can now use getNext() in place of getStart()
+
+- PPPathSequence
+    - Can now use getNext() in place of getStart()

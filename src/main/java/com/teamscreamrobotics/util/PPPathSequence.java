@@ -25,7 +25,7 @@ public class PPPathSequence {
     private final ArrayList<PathPlannerPath> list = new ArrayList<>();
     private final String[] pathNames;
     private final FlipType flipType;
-    private int index = 0;
+    private int index = -1;
 
     /**
      * Defines how a path should be transformed to produce its field-symmetric equivalent.
@@ -108,6 +108,7 @@ public class PPPathSequence {
 
     /** Returns a command that follows the first path in the sequence. */
     public Command getStart(){
+        index = 0;
         return getPathCommand(list.get(0));
     }
 

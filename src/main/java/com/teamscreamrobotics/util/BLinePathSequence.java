@@ -14,10 +14,20 @@ import frc.robot.lib.BLine.Path;
 
 public class BLinePathSequence {
     private final FollowPath.Builder builder;
-    private final ArrayList<Path> list = new ArrayList<>();
+    private final ArrayList<PathEntry> entries = new ArrayList<>();
     private final String[] pathNames;
     private final FlipType flipType;
-    private int index = 0;
+    private int index = -1;
+
+    private static class PathEntry {
+        final String name;
+        final boolean extraMirror;
+
+        PathEntry(String name, boolean extraMirror) {
+            this.name = name;
+            this.extraMirror = extraMirror;
+        }
+    }
 
     /**
      * Defines how a path should be transformed to produce its field-symmetric equivalent.
@@ -42,12 +52,13 @@ public class BLinePathSequence {
 
     /**
      * Loads and prepares a sequence of BLine paths for autonomous use.
+     * Alliance flipping is deferred to retrieval time so the correct alliance
+     * is used even if the object is constructed before the DS reports alliance.
      *
      * @param builder    the {@link FollowPath.Builder} used to build each path-following command
      * @param flipType   how paths should be mirrored for the red alliance — see {@link FlipType}
      * @param pathNames  one or more BLine path names to load, in order
      * @throws InvalidParameterException if no path names are supplied
-     * @throws RuntimeException          if any path fails to load
      */
     public BLinePathSequence(FollowPath.Builder builder, FlipType flipType, String... pathNames){
         this.flipType = flipType;
@@ -64,15 +75,22 @@ public class BLinePathSequence {
         }
 
         for (String pathName : pathNames){
-            Path path = getPath(pathName)
-                .orElseThrow(() -> new RuntimeException("Failed to load path: " + pathName));
-            list.add(path);
+            entries.add(new PathEntry(pathName, false));
         }
     }
 
-    private Optional<Path> getPath(String pathName){
+    private BLinePathSequence(BLinePathSequence source, boolean applyMirror) {
+        this.builder = source.builder;
+        this.flipType = source.flipType;
+        this.pathNames = source.pathNames;
+        for (PathEntry entry : source.entries) {
+            this.entries.add(new PathEntry(entry.name, entry.extraMirror != applyMirror));
+        }
+    }
+
+    private Optional<Path> loadPath(PathEntry entry){
         try {
-            Path path = new Path(pathName);
+            Path path = new Path(entry.name);
 
             if (AllianceFlipUtil.shouldFlip().getAsBoolean()) {
                 if(flipType == FlipType.SymmetricField){
@@ -83,9 +101,13 @@ public class BLinePathSequence {
                 }
             }
 
+            if (entry.extraMirror) {
+                path.mirror();
+            }
+
             return Optional.of(path);
         } catch (Exception e){
-            DriverStation.reportError("[Auto] Failed to load path: " + pathName, e.getStackTrace());
+            DriverStation.reportError("[Auto] Failed to load path: " + entry.name, e.getStackTrace());
             return Optional.empty();
         }
     }
@@ -97,34 +119,39 @@ public class BLinePathSequence {
         return isRunningPath;
     }
 
-    private Command getPathCommand(Path path){
-        return builder.build(path)
+    private Command getPathCommand(PathEntry entry){
+        Optional<Path> path = loadPath(entry);
+        if (path.isEmpty()) {
+            return new InstantCommand();
+        }
+        return builder.build(path.get())
             .beforeStarting(() -> isRunningPath = true)
             .finallyDo(() -> isRunningPath = false);
     }
 
-    private Pose2d getPathStartingPose(Path path){
-        return path.getStartPose();
-    }
-
     /** Returns the starting pose of the first path — use this to reset odometry before auto. */
     public Pose2d getStartingPose(){
-        return getPathStartingPose(list.get(0));
+        return loadPath(entries.get(0))
+            .orElseThrow(() -> new RuntimeException("Failed to load path: " + entries.get(0).name))
+            .getStartPose();
     }
 
     /** Returns a command that follows the first path in the sequence. */
     public Command getStart(){
-        return getPathCommand(list.get(0));
+        if(index == -1){
+            index = 0;
+        }
+        return getPathCommand(entries.get(0));
     }
 
     /** Returns a command that follows the last path in the sequence. */
     public Command getEnd(){
-        return getPathCommand(list.get(list.size() - 1));
+        return getPathCommand(entries.get(entries.size() - 1));
     }
 
     /** Returns the total number of paths in this sequence. */
     public int getSize(){
-        return list.size();
+        return entries.size();
     }
 
     /**
@@ -133,7 +160,7 @@ public class BLinePathSequence {
      * Returns a no-op {@link InstantCommand} and logs a DS warning if already at the last path.
      */
     public Command getNext(){
-        if (index + 1 >= list.size()) {
+        if (index + 1 >= entries.size()) {
             DriverStation.reportWarning(
                 "[Auto] No additional paths. Last supplied path: " +
                 pathNames[pathNames.length - 1],
@@ -143,14 +170,14 @@ public class BLinePathSequence {
         }
 
         index++;
-        return getPathCommand(list.get(index));
+        return getPathCommand(entries.get(index));
     }
 
     /** Returns a {@link SequentialCommandGroup} that runs all paths in order. */
     public Command getAll(){
-        Command[] commands = new Command[list.size()];
-        for (int i = 0; i < list.size(); i++){
-            commands[i] = getPathCommand(list.get(i));
+        Command[] commands = new Command[entries.size()];
+        for (int i = 0; i < entries.size(); i++){
+            commands[i] = getPathCommand(entries.get(i));
         }
         return new SequentialCommandGroup(commands);
     }
@@ -162,7 +189,7 @@ public class BLinePathSequence {
      * @param index zero-based path index
      */
     public Command getIndex(int index){
-        if (index < 0 || index >= list.size()) {
+        if (index < 0 || index >= entries.size()) {
             DriverStation.reportWarning(
                 "[Auto] No path at specified index " + index +
                 ". Last supplied path: " + pathNames[pathNames.length - 1],
@@ -170,17 +197,18 @@ public class BLinePathSequence {
             );
             return new InstantCommand();
         }
-        return getPathCommand(list.get(index));
+        return getPathCommand(entries.get(index));
     }
 
     /**
      * Returns the raw {@link Path} at {@code index}, or {@link Optional#empty()} if out of bounds.
+     * The path is flipped according to the current alliance at call time.
      * Use this when you need direct path access rather than a follow command.
      *
      * @param index zero-based path index
      */
     public Optional<Path> getPath(int index){
-        if (index < 0 || index >= list.size()) {
+        if (index < 0 || index >= entries.size()) {
             DriverStation.reportWarning(
                 "[Auto] No path at specified index " + index +
                 ". Last supplied path: " + pathNames[pathNames.length - 1],
@@ -188,19 +216,18 @@ public class BLinePathSequence {
             );
             return Optional.empty();
         }
-        return Optional.of(list.get(index));
+        return loadPath(entries.get(index));
     }
 
     /**
      * Appends additional paths to the end of this sequence.
-     * Paths that fail to load are skipped with a DS error (no exception thrown).
      *
      * @param pathNames one or more BLine path names to append
      * @return {@code this}, for chaining
      */
     public BLinePathSequence withAdditional(String... pathNames){
         for (String pathName : pathNames){
-            getPath(pathName).ifPresent(list::add);
+            entries.add(new PathEntry(pathName, false));
         }
         return this;
     }
@@ -214,10 +241,6 @@ public class BLinePathSequence {
      * @return a new {@link BLinePathSequence} with mirrored paths
      */
     public BLinePathSequence mirror() {
-        BLinePathSequence mirrored = new BLinePathSequence(builder, flipType, pathNames);
-        for (Path path : mirrored.list) {
-            path.mirror();
-        }
-        return mirrored;
+        return new BLinePathSequence(this, true);
     }
 }
