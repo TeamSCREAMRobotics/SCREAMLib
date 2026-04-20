@@ -2,12 +2,9 @@ package com.teamscreamrobotics.util;
 
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
@@ -15,16 +12,12 @@ import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.lib.BLine.FollowPath;
 import frc.robot.lib.BLine.Path;
 import frc.robot.lib.BLine.FlippingUtil.FieldSymmetry;
-import frc.robot.lib.BLine.Path.PathElement;
-import frc.robot.lib.BLine.Path.Waypoint;
 
 public class BLinePathSequence {
     private final FollowPath.Builder builder;
     private final ArrayList<PathEntry> entries = new ArrayList<>();
     private final String[] pathNames;
     private final FieldSymmetry fieldSymmetry;
-    private List<Pose2d> pathPointsList;
-    private Pose2d[] pathPoints;
     private int index = -1;
 
     private static class PathEntry {
@@ -79,28 +72,9 @@ public class BLinePathSequence {
                 path.mirror();
             }
 
-            pathPointsList.add(getStartingPose());
-            Optional<Pose2d> endpoint = getPoseFromElement(path.getPathElements().get(path.getPathElements().size() - 1));
-            if(endpoint.isPresent()){
-                pathPointsList.add(endpoint.get());
-            }
-
-            pathPoints = pathPointsList.toArray(Pose2d[]::new);
-            
             return Optional.of(path);
         } catch (Exception e){
             DriverStation.reportError("[Auto] Failed to load path: " + entry.name, e.getStackTrace());
-            return Optional.empty();
-        }
-    }
-
-    private Optional<Pose2d> getPoseFromElement(PathElement element){
-        if(element instanceof Waypoint){
-            Waypoint waypoint = (Waypoint) element;
-            Translation2d translation = waypoint.translationTarget().translation();
-            Rotation2d rotation = waypoint.rotationTarget().rotation();
-            return Optional.of(new Pose2d(translation, rotation));
-        } else {
             return Optional.empty();
         }
     }
@@ -236,9 +210,5 @@ public class BLinePathSequence {
      */
     public BLinePathSequence mirror() {
         return new BLinePathSequence(this, true);
-    }
-
-    public void logPoints(){
-        Logger.log(pathNames[0], pathPoints);
     }
 }
