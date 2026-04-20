@@ -25,14 +25,23 @@ jobs:
           CURRENT=$(grep -oP "(?<=def ver = ')[\d.]+" build.gradle)
           echo "Current version: $CURRENT"
 
-          MAJOR=$(echo $CURRENT | cut -d. -f1)
+          CURRENT_MAJOR=$(echo $CURRENT | cut -d. -f1)
           MINOR=$(echo $CURRENT | cut -d. -f2)
           PATCH=$(echo $CURRENT | cut -d. -f3)
 
-          PATCH=$((PATCH + 1))
-          if [ $PATCH -ge 10 ]; then
+          YEAR=$(date +%y)
+
+          if [ "$YEAR" != "$CURRENT_MAJOR" ]; then
+            MAJOR=$YEAR
+            MINOR=0
             PATCH=0
-            MINOR=$((MINOR + 1))
+          else
+            MAJOR=$CURRENT_MAJOR
+            PATCH=$((PATCH + 1))
+            if [ $PATCH -ge 10 ]; then
+              PATCH=0
+              MINOR=$((MINOR + 1))
+            fi
           fi
 
           NEW="$MAJOR.$MINOR.$PATCH"
