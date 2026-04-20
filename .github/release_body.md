@@ -18,9 +18,5 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - BLine
 
 ## Changes
-- BLinePathSequence
-    - Alliance fix
-    - Can now use getNext() in place of getStart()
-
 - PPPathSequence
-    - Can now use getNext() in place of getStart()
+    - Can now safely use getNext() in place of getStart()
