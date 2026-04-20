@@ -16,7 +16,3 @@ https://teamscreamrobotics.github.io/SCREAMLib/SCREAMLib.json
 - Pathplanner
 - Doglog
 - BLine
-
-## Changes
-- PPPathSequence
-    - Can now safely use getNext() in place of getStart()

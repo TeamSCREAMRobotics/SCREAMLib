@@ -16,7 +16,6 @@ public class BLinePathSequence {
     private final FollowPath.Builder builder;
     private final ArrayList<PathEntry> entries = new ArrayList<>();
     private final String[] pathNames;
-    private final FlipType flipType;
     private int index = -1;
 
     private static class PathEntry {
@@ -30,27 +29,6 @@ public class BLinePathSequence {
     }
 
     /**
-     * Defines how a path should be transformed to produce its field-symmetric equivalent.
-     *
-     * <p>BLine provides two underlying operations:
-     * <ul>
-     *   <li>{@link Path#flip()} - transforms to the opposite alliance side (blue -> red)</li>
-     *   <li>{@link Path#mirror()} - reflects across the field width centerline (y -> fieldSizeY - y)</li>
-     * </ul>
-     *
-     * <ul>
-     *   <li>{@link #RotatedField} - Use for rotationally symmetric fields (e.g. Rebuilt 2026).
-     *       Calls {@link Path#flip()} only, which rotates 180 degrees around the field center.</li>
-     *   <li>{@link #SymmetricField} - Use for bilaterally symmetric fields where blue and red are
-     *       mirrored across the length midline (y axis). Calls both {@link Path#flip()} and
-     *       {@link Path#mirror()}, transforming both alliance side and field half.</li>
-     */
-    public enum FlipType {
-        RotatedField,
-        SymmetricField,
-    }
-
-    /**
      * Loads and prepares a sequence of BLine paths for autonomous use.
      * Alliance flipping is deferred to retrieval time so the correct alliance
      * is used even if the object is constructed before the DS reports alliance.
@@ -60,15 +38,9 @@ public class BLinePathSequence {
      * @param pathNames  one or more BLine path names to load, in order
      * @throws InvalidParameterException if no path names are supplied
      */
-    public BLinePathSequence(FollowPath.Builder builder, FlipType flipType, String... pathNames){
-        this.flipType = flipType;
+    public BLinePathSequence(FollowPath.Builder builder, String... pathNames){
+        this.builder = builder;
         this.pathNames = pathNames;
-
-        if(flipType == FlipType.SymmetricField){
-            this.builder = builder.withDefaultShouldFlip().withShouldMirror(AllianceFlipUtil.shouldFlip()::getAsBoolean);
-        } else {
-            this.builder = builder.withDefaultShouldFlip();
-        }
 
         if (pathNames.length == 0) {
             throw new InvalidParameterException("Cannot create path sequence of length 0");
@@ -81,8 +53,8 @@ public class BLinePathSequence {
 
     private BLinePathSequence(BLinePathSequence source, boolean applyMirror) {
         this.builder = source.builder;
-        this.flipType = source.flipType;
         this.pathNames = source.pathNames;
+        
         for (PathEntry entry : source.entries) {
             this.entries.add(new PathEntry(entry.name, entry.extraMirror != applyMirror));
         }
@@ -91,15 +63,6 @@ public class BLinePathSequence {
     private Optional<Path> loadPath(PathEntry entry){
         try {
             Path path = new Path(entry.name);
-
-            if (AllianceFlipUtil.shouldFlip().getAsBoolean()) {
-                if(flipType == FlipType.SymmetricField){
-                    path.flip();
-                    path.mirror();
-                } else {
-                    path.flip();
-                }
-            }
 
             if (entry.extraMirror) {
                 path.mirror();
