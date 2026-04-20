@@ -11,11 +11,13 @@ import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.lib.BLine.FollowPath;
 import frc.robot.lib.BLine.Path;
+import frc.robot.lib.BLine.FlippingUtil.FieldSymmetry;
 
 public class BLinePathSequence {
     private final FollowPath.Builder builder;
     private final ArrayList<PathEntry> entries = new ArrayList<>();
     private final String[] pathNames;
+    private final FieldSymmetry fieldSymmetry;
     private int index = -1;
 
     private static class PathEntry {
@@ -38,8 +40,9 @@ public class BLinePathSequence {
      * @param pathNames  one or more BLine path names to load, in order
      * @throws InvalidParameterException if no path names are supplied
      */
-    public BLinePathSequence(FollowPath.Builder builder, String... pathNames){
+    public BLinePathSequence(FollowPath.Builder builder, FieldSymmetry fieldSymmetry, String... pathNames){
         this.builder = builder;
+        this.fieldSymmetry = fieldSymmetry;
         this.pathNames = pathNames;
 
         if (pathNames.length == 0) {
@@ -53,8 +56,9 @@ public class BLinePathSequence {
 
     private BLinePathSequence(BLinePathSequence source, boolean applyMirror) {
         this.builder = source.builder;
+        this.fieldSymmetry = source.fieldSymmetry;
         this.pathNames = source.pathNames;
-        
+
         for (PathEntry entry : source.entries) {
             this.entries.add(new PathEntry(entry.name, entry.extraMirror != applyMirror));
         }
@@ -94,9 +98,10 @@ public class BLinePathSequence {
 
     /** Returns the starting pose of the first path — use this to reset odometry before auto. */
     public Pose2d getStartingPose(){
-        return loadPath(entries.get(0))
+        Pose2d pose = loadPath(entries.get(0))
             .orElseThrow(() -> new RuntimeException("Failed to load path: " + entries.get(0).name))
             .getStartPose();
+        return fieldSymmetry == FieldSymmetry.kRotational ? AllianceFlipUtil.FlippedPose2d(pose) : AllianceFlipUtil.MirroredPose2d(pose);
     }
 
     /** Returns a command that follows the first path in the sequence. */
