@@ -62,9 +62,9 @@ jobs:
           git push origin $NEW
 
   build:
-    needs: bump-version
+    #needs: bump-version
     # Only run if bump-version succeeded OR was skipped (because we pushed a tag)
-    if: success() || needs.bump-version.result == 'skipped'
+    #if: success() || needs.bump-version.result == 'skipped'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
