@@ -68,6 +68,10 @@ public class BLinePathSequence {
         try {
             Path path = new Path(entry.name);
 
+            if(AllianceFlipUtil.shouldFlip().getAsBoolean()){
+                path.flip();
+            }
+
             if (entry.extraMirror) {
                 path.mirror();
             }
