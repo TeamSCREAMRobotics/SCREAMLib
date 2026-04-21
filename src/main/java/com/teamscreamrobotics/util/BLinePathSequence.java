@@ -102,10 +102,9 @@ public class BLinePathSequence {
 
     /** Returns the starting pose of the first path — use this to reset odometry before auto. */
     public Pose2d getStartingPose(){
-        Pose2d pose = loadPath(entries.get(0))
+        return loadPath(entries.get(0))
             .orElseThrow(() -> new RuntimeException("Failed to load path: " + entries.get(0).name))
             .getStartPose();
-        return fieldSymmetry == FieldSymmetry.kRotational ? AllianceFlipUtil.FlippedPose2d(pose) : AllianceFlipUtil.MirroredPose2d(pose);
     }
 
     /** Returns a command that follows the first path in the sequence. */
