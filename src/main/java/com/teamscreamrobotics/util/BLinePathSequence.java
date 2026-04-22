@@ -19,6 +19,7 @@ public class BLinePathSequence {
     private final String[] pathNames;
     private final FieldSymmetry fieldSymmetry;
     private int index = -1;
+    private String name;
 
     private static class PathEntry {
         final String name;
@@ -58,6 +59,7 @@ public class BLinePathSequence {
         this.builder = source.builder;
         this.fieldSymmetry = source.fieldSymmetry;
         this.pathNames = source.pathNames;
+        this.name = source.name;
 
         for (PathEntry entry : source.entries) {
             this.entries.add(new PathEntry(entry.name, entry.extraMirror != applyMirror));
@@ -213,5 +215,25 @@ public class BLinePathSequence {
      */
     public BLinePathSequence mirror() {
         return new BLinePathSequence(this, true);
+    }
+
+    /**
+     * Sets the name of this path sequence.
+     *
+     * @param name the name to assign to this sequence
+     * @return {@code this}, for chaining
+     */
+    public BLinePathSequence withName(String name) {
+        this.name = name;
+        return this;
+    }
+
+    /**
+     * Returns the name of this path sequence.
+     *
+     * @return the sequence name, or {@code null} if no name has been set
+     */
+    public String getName() {
+        return name;
     }
 }
