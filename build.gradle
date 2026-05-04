@@ -31,6 +31,7 @@ ext.localMavenURL = file("${project.buildDir}/repo/maven")
 
 dependencies {
         annotationProcessor wpi.java.deps.wpilibAnnotations()
+        annotationProcessor 'org.littletonrobotics.akit:akit-java:26.0.2'
         implementation wpi.java.deps.wpilib()
 
         implementation 'com.github.jonahsnider:doglog:2026.2.0'
@@ -38,6 +39,7 @@ dependencies {
         implementation 'com.ctre.phoenix6:wpiapi-java:26.1.1'
         implementation 'edu.wpi.first.wpilibNewCommands:wpilibNewCommands-java:2026.+'
         implementation 'com.github.edanliahovetsky:BLine-Lib:v0.8.4'
+        implementation 'org.littletonrobotics.akit:akit-java:26.0.2'
 
         nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)
         nativeDebug wpi.java.vendor.jniDebug(wpi.platforms.desktop)
