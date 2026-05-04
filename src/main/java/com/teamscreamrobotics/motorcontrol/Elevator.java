@@ -65,6 +65,11 @@ public class Elevator extends SmartMechanism {
     }
 
     public boolean atHeight() {
+        if (config.positionTolerance != null) {
+            double toleranceMeters = config.positionTolerance.in(Rotations)
+                    * config.mechanismCircumference.in(Meters);
+            return atHeight(setpoint, Meters.of(toleranceMeters));
+        }
         return atHeight(setpoint, DEFAULT_TOLERANCE);
     }
 

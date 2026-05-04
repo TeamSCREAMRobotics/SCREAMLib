@@ -59,7 +59,8 @@ public class Pivot extends SmartMechanism {
     }
 
     public boolean atAngle() {
-        return atAngle(setpoint, DEFAULT_TOLERANCE);
+        Angle tolerance = config.positionTolerance != null ? config.positionTolerance : DEFAULT_TOLERANCE;
+        return atAngle(setpoint, tolerance);
     }
 
     public boolean atAngle(Angle target, Angle tolerance) {

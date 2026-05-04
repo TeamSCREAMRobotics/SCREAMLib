@@ -2,7 +2,9 @@ package com.teamscreamrobotics.motorcontrol;
 
 import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.teamscreamrobotics.power.PowerPriority;
 
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.system.plant.DCMotor;
@@ -62,6 +64,22 @@ public class SmartMotorControllerConfig {
         }
     }
 
+    /**
+     * Describes an attached CANcoder used for absolute position feedback.
+     *
+     * @param canId                  CAN device ID of the CANcoder.
+     * @param canbus                 CAN bus name (empty string = default bus).
+     * @param magnetOffsetRotations  Offset applied to the raw magnet reading (rotations).
+     * @param useAsAbsolutePosition  If true, seeds the TalonFX position from the CANcoder
+     *                               absolute position on boot.
+     */
+    public record CANcoderConfig(int canId, String canbus, double magnetOffsetRotations,
+                                 boolean useAsAbsolutePosition) {
+        public CANcoderConfig(int canId, double magnetOffsetRotations, boolean useAsAbsolutePosition) {
+            this(canId, "", magnetOffsetRotations, useAsAbsolutePosition);
+        }
+    }
+
     // Required
     public final SubsystemBase subsystem;
 
@@ -96,11 +114,23 @@ public class SmartMotorControllerConfig {
     public Angle forwardSoftLimit = null;
     public Angle reverseSoftLimit = null;
 
+    // Goal tolerances
+    public Angle positionTolerance = null;
+    public AngularVelocity velocityTolerance = null;
+
+    // Power management
+    public PowerPriority powerPriority = PowerPriority.MEDIUM;
+    public int[] pdhChannels = new int[0];
+
     // Motor model (for simulation)
     public DCMotor motorModel = null;
 
     // Continuous wrap (for pivots)
     public boolean enableContinuousWrap = false;
+
+    // CANcoder
+    public CANcoderConfig cancoder = null;
+    public boolean usePhoenixPro = false;
 
     // Followers
     private FollowerConfig[] followers = new FollowerConfig[0];
@@ -154,11 +184,32 @@ public class SmartMotorControllerConfig {
         return this;
     }
 
+    public SmartMotorControllerConfig withClosedLoopController(double kP, double kI, double kD) {
+        this.slot0 = new Slot0Configs().withKP(kP).withKI(kI).withKD(kD);
+        return this;
+    }
+
     public SmartMotorControllerConfig withClosedLoopController(
             double kP, double kI, double kD,
             AngularVelocity maxVelocity,
             AngularAcceleration maxAcceleration) {
         this.slot0 = new Slot0Configs().withKP(kP).withKI(kI).withKD(kD);
+        this.motionMagic = new MotionMagicConfigs()
+                .withMotionMagicCruiseVelocity(maxVelocity.in(RotationsPerSecond))
+                .withMotionMagicAcceleration(maxAcceleration.in(RotationsPerSecondPerSecond));
+        return this;
+    }
+
+    public SmartMotorControllerConfig withClosedLoopController(
+            double kP, double kI, double kD,
+            double kS, double kV, double kA, double kG,
+            GravityTypeValue gravityType,
+            AngularVelocity maxVelocity,
+            AngularAcceleration maxAcceleration) {
+        this.slot0 = new Slot0Configs()
+                .withKP(kP).withKI(kI).withKD(kD)
+                .withKS(kS).withKV(kV).withKA(kA).withKG(kG)
+                .withGravityType(gravityType);
         this.motionMagic = new MotionMagicConfigs()
                 .withMotionMagicCruiseVelocity(maxVelocity.in(RotationsPerSecond))
                 .withMotionMagicAcceleration(maxAcceleration.in(RotationsPerSecondPerSecond));
@@ -217,8 +268,38 @@ public class SmartMotorControllerConfig {
         return this;
     }
 
+    public SmartMotorControllerConfig withPositionTolerance(Angle tolerance) {
+        this.positionTolerance = tolerance;
+        return this;
+    }
+
+    public SmartMotorControllerConfig withVelocityTolerance(AngularVelocity tolerance) {
+        this.velocityTolerance = tolerance;
+        return this;
+    }
+
+    public SmartMotorControllerConfig withPowerPriority(PowerPriority priority) {
+        this.powerPriority = priority;
+        return this;
+    }
+
+    public SmartMotorControllerConfig withPDHChannels(int... channels) {
+        this.pdhChannels = channels;
+        return this;
+    }
+
     public SmartMotorControllerConfig withContinuousWrap(boolean enable) {
         this.enableContinuousWrap = enable;
+        return this;
+    }
+
+    public SmartMotorControllerConfig withCANcoder(CANcoderConfig cancoder) {
+        this.cancoder = cancoder;
+        return this;
+    }
+
+    public SmartMotorControllerConfig withPhoenixPro(boolean usePhoenixPro) {
+        this.usePhoenixPro = usePhoenixPro;
         return this;
     }
 

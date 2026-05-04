@@ -21,6 +21,8 @@ public class SmartMotorControllerInputsAutoLogged
         table.put("FollowerStatorCurrentAmps", followerStatorCurrentAmps);
         table.put("FollowerTempCelsius", followerTempCelsius);
         table.put("FollowerConnected", followerConnected);
+        table.put("CANcoderPositionRad", cancoderPositionRad);
+        table.put("CANcoderConnected", cancoderConnected);
     }
 
     @Override
@@ -36,5 +38,7 @@ public class SmartMotorControllerInputsAutoLogged
         followerStatorCurrentAmps = table.get("FollowerStatorCurrentAmps", followerStatorCurrentAmps);
         followerTempCelsius = table.get("FollowerTempCelsius", followerTempCelsius);
         followerConnected = table.get("FollowerConnected", followerConnected);
+        cancoderPositionRad = table.get("CANcoderPositionRad", cancoderPositionRad);
+        cancoderConnected = table.get("CANcoderConnected", cancoderConnected);
     }
 }

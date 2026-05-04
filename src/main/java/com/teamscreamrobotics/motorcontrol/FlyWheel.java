@@ -1,6 +1,5 @@
 package com.teamscreamrobotics.motorcontrol;
 
-import edu.wpi.first.math.controller.LinearQuadraticRegulator;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.simulation.FlywheelSim;
@@ -90,7 +89,8 @@ public class FlyWheel extends SmartMechanism {
     }
 
     public boolean atVelocity() {
-        return atVelocity(setpoint, DEFAULT_TOLERANCE);
+        AngularVelocity tolerance = config.velocityTolerance != null ? config.velocityTolerance : DEFAULT_TOLERANCE;
+        return atVelocity(setpoint, tolerance);
     }
 
     public boolean atVelocity(AngularVelocity target, AngularVelocity tolerance) {

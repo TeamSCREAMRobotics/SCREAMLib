@@ -23,6 +23,7 @@ public class Arm extends SmartMechanism {
         super(armConfig.motor, armConfig.resolveLogPrefix());
         this.setpoint = armConfig.startingPosition;
 
+        motor.setHorizontalZeroRad(armConfig.horizontalZero.in(Radians));
         motor.resetEncoder(armConfig.startingPosition);
 
         if (RobotBase.isSimulation() && armConfig.length != null && armConfig.mass != null
@@ -66,7 +67,8 @@ public class Arm extends SmartMechanism {
     }
 
     public boolean atAngle() {
-        return atAngle(setpoint, DEFAULT_TOLERANCE);
+        Angle tolerance = config.positionTolerance != null ? config.positionTolerance : DEFAULT_TOLERANCE;
+        return atAngle(setpoint, tolerance);
     }
 
     public boolean atAngle(Angle target, Angle tolerance) {

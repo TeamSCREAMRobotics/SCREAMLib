@@ -5,21 +5,33 @@ import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.ClosedLoopGeneralConfigs;
 import com.ctre.phoenix6.configs.ClosedLoopRampsConfigs;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
+import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.FeedbackConfigs;
+import com.ctre.phoenix6.configs.MagnetSensorConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.OpenLoopRampsConfigs;
 import com.ctre.phoenix6.configs.SoftwareLimitSwitchConfigs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.DynamicMotionMagicVoltage;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 
 import com.teamscreamrobotics.motorcontrol.SmartMotorControllerConfig.FollowerConfig;
+import com.teamscreamrobotics.power.PowerConsumer;
+import com.teamscreamrobotics.power.PowerConstraint;
+import com.teamscreamrobotics.power.PowerManager;
+import com.teamscreamrobotics.power.PowerPriority;
 
+import edu.wpi.first.math.controller.ArmFeedforward;
+import edu.wpi.first.math.controller.ElevatorFeedforward;
+import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.units.measure.Angle;
@@ -45,11 +57,12 @@ import static edu.wpi.first.units.Units.*;
  * that depends on follower current thresholds would be nondeterministic because
  * follower signals are not injected from the log during replay.
  */
-public class TalonFXWrapper implements SmartMotorController {
+public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
 
     private final TalonFX motor;
     private final SmartMotorControllerConfig config;
     private final String logPrefix;
+    private double horizontalZeroRad = 0.0;
 
     // Master signals
     private final StatusSignal<Angle> positionSignal;
@@ -59,6 +72,10 @@ public class TalonFXWrapper implements SmartMotorController {
     private final StatusSignal<Current> statorCurrentSignal;
     private final StatusSignal<Temperature> temperatureSignal;
 
+    // CANcoder
+    private final CANcoder cancoder;
+    private final StatusSignal<Angle> cancoderPositionSignal;
+
     // Follower motors and their diagnostic signals
     private final TalonFX[] followerMotors;
     private final StatusSignal<Current>[] followerSupplyCurrentSignals;
@@ -66,8 +83,11 @@ public class TalonFXWrapper implements SmartMotorController {
     private final StatusSignal<Temperature>[] followerTempSignals;
 
     private final MotionMagicVoltage motionMagicRequest = new MotionMagicVoltage(0).withEnableFOC(false);
+    private final DynamicMotionMagicVoltage dynMotionMagicRequest = new DynamicMotionMagicVoltage(0, 0, 0).withEnableFOC(false);
     private final VelocityVoltage velocityRequest = new VelocityVoltage(0).withEnableFOC(false);
     private final VoltageOut voltageRequest = new VoltageOut(0);
+
+    private PowerConstraint powerConstraint = PowerConstraint.UNCONSTRAINED;
 
     private final SmartMotorControllerInputsAutoLogged inputs = new SmartMotorControllerInputsAutoLogged();
 
@@ -82,6 +102,20 @@ public class TalonFXWrapper implements SmartMotorController {
         this.logPrefix = config.resolveLogPrefix(motor.getDescription());
         this.isSimulation = RobotBase.isSimulation();
 
+        // Instantiate and configure CANcoder before applyConfiguration() so the
+        // feedback sensor source can reference it.
+        if (config.cancoder != null) {
+            cancoder = config.cancoder.canbus().isEmpty()
+                    ? new CANcoder(config.cancoder.canId())
+                    : new CANcoder(config.cancoder.canId(), config.cancoder.canbus());
+            CANcoderConfiguration cancoderCfg = new CANcoderConfiguration();
+            cancoderCfg.MagnetSensor = new MagnetSensorConfigs()
+                    .withMagnetOffset(config.cancoder.magnetOffsetRotations());
+            cancoder.getConfigurator().apply(cancoderCfg);
+        } else {
+            cancoder = null;
+        }
+
         applyConfiguration();
 
         positionSignal = motor.getPosition();
@@ -94,6 +128,14 @@ public class TalonFXWrapper implements SmartMotorController {
         BaseStatusSignal.setUpdateFrequencyForAll(100, positionSignal, velocitySignal);
         BaseStatusSignal.setUpdateFrequencyForAll(50, voltageSignal, supplyCurrentSignal,
                 statorCurrentSignal, temperatureSignal);
+
+        if (cancoder != null) {
+            cancoderPositionSignal = cancoder.getAbsolutePosition();
+            cancoderPositionSignal.setUpdateFrequency(50);
+            cancoder.optimizeBusUtilization();
+        } else {
+            cancoderPositionSignal = null;
+        }
 
         motor.optimizeBusUtilization();
 
@@ -139,6 +181,12 @@ public class TalonFXWrapper implements SmartMotorController {
         inputs.followerTempCelsius = new double[followerCount];
         inputs.followerConnected = new boolean[followerCount];
 
+        // Seed TalonFX position from CANcoder absolute reading on boot
+        if (cancoderPositionSignal != null && config.cancoder.useAsAbsolutePosition()) {
+            cancoderPositionSignal.refresh();
+            motor.setPosition(cancoderPositionSignal.getValueAsDouble());
+        }
+
         if (isSimulation) {
             motorSim = new DCMotorSim(
                     LinearSystemId.createDCMotorSystem(motorModel, 0.001, config.gearing),
@@ -146,6 +194,8 @@ public class TalonFXWrapper implements SmartMotorController {
         } else {
             motorSim = null;
         }
+
+        PowerManager.register(this);
     }
 
     private void applyConfiguration() {
@@ -168,8 +218,15 @@ public class TalonFXWrapper implements SmartMotorController {
         cfg.ClosedLoopRamps = new ClosedLoopRampsConfigs()
                 .withVoltageClosedLoopRampPeriod(config.closedLoopRampRate);
 
-        cfg.Feedback = new FeedbackConfigs()
+        FeedbackConfigs feedback = new FeedbackConfigs()
                 .withSensorToMechanismRatio(config.gearing);
+        if (cancoder != null) {
+            feedback.withFeedbackSensorSource(config.usePhoenixPro
+                            ? FeedbackSensorSourceValue.FusedCANcoder
+                            : FeedbackSensorSourceValue.RemoteCANcoder)
+                    .withFeedbackRemoteSensorID(cancoder.getDeviceID());
+        }
+        cfg.Feedback = feedback;
 
         cfg.Slot0 = config.slot0;
         cfg.MotionMagic = config.motionMagic;
@@ -226,6 +283,12 @@ public class TalonFXWrapper implements SmartMotorController {
                     followerStatorCurrentSignals[i],
                     followerTempSignals[i]);
         }
+
+        if (cancoderPositionSignal != null) {
+            BaseStatusSignal.refreshAll(cancoderPositionSignal);
+            inputs.cancoderPositionRad = cancoderPositionSignal.getValueAsDouble() * 2.0 * Math.PI;
+            inputs.cancoderConnected = BaseStatusSignal.isAllGood(cancoderPositionSignal);
+        }
     }
 
     @Override
@@ -238,31 +301,126 @@ public class TalonFXWrapper implements SmartMotorController {
         return logPrefix;
     }
 
+    private double calculateFeedforward(double velocityRadPerSec, double positionRad) {
+        if (config.armFeedforward != null || config.simArmFeedforward != null) {
+            ArmFeedforward ff = (isSimulation && config.simArmFeedforward != null)
+                    ? config.simArmFeedforward : config.armFeedforward;
+            if (ff == null) return 0.0;
+            return ff.calculate(positionRad - horizontalZeroRad, velocityRadPerSec);
+        }
+        if (config.elevatorFeedforward != null || config.simElevatorFeedforward != null) {
+            ElevatorFeedforward ff = (isSimulation && config.simElevatorFeedforward != null)
+                    ? config.simElevatorFeedforward : config.elevatorFeedforward;
+            if (ff == null) return 0.0;
+            return ff.calculate(velocityRadPerSec);
+        }
+        if (config.simpleFeedforward != null || config.simSimpleFeedforward != null) {
+            SimpleMotorFeedforward ff = (isSimulation && config.simSimpleFeedforward != null)
+                    ? config.simSimpleFeedforward : config.simpleFeedforward;
+            if (ff == null) return 0.0;
+            return ff.calculate(velocityRadPerSec);
+        }
+        return 0.0;
+    }
+
+    @Override
+    public double getHorizontalZeroRad() {
+        return horizontalZeroRad;
+    }
+
+    @Override
+    public void setHorizontalZeroRad(double rad) {
+        this.horizontalZeroRad = rad;
+    }
+
+    // ── PowerConsumer ──────────────────────────────────────────────────────
+
+    @Override
+    public PowerPriority getPowerPriority() {
+        return config.powerPriority;
+    }
+
+    @Override
+    public double estimateDemandWatts() {
+        // Use last measured stator current. Before first measurement, assume
+        // 30 % of the stator limit as a conservative startup estimate.
+        double amps = inputs.statorCurrentAmps > 0.5
+                ? inputs.statorCurrentAmps
+                : config.statorCurrentLimitAmps * 0.3;
+        return amps * 12.0;
+    }
+
+    @Override
+    public void applyPowerConstraint(PowerConstraint constraint) {
+        this.powerConstraint = constraint;
+    }
+
+    @Override
+    public String getConsumerName() {
+        return logPrefix;
+    }
+
+    @Override
+    public int[] getPDHChannels() {
+        return config.pdhChannels;
+    }
+
+    // ── Constraint-aware control helpers ──────────────────────────────────
+
+    private void sendPositionControl(double rotations, double ff) {
+        if (powerConstraint.fullyDisabled) { motor.stopMotor(); return; }
+        if (powerConstraint.isUnconstrained()) {
+            motor.setControl(motionMagicRequest
+                    .withPosition(rotations)
+                    .withFeedForward(ff));
+        } else {
+            motor.setControl(dynMotionMagicRequest
+                    .withPosition(rotations)
+                    .withVelocity(config.motionMagic.MotionMagicCruiseVelocity
+                            * powerConstraint.velocityCap)
+                    .withAcceleration(config.motionMagic.MotionMagicAcceleration
+                            * powerConstraint.accelerationCap)
+                    .withFeedForward(ff * powerConstraint.feedforwardCap));
+        }
+    }
+
+    private void sendVelocityControl(double rps, double ff) {
+        if (powerConstraint.fullyDisabled) { motor.stopMotor(); return; }
+        motor.setControl(velocityRequest
+                .withVelocity(rps * powerConstraint.velocityCap)
+                .withFeedForward(ff * powerConstraint.feedforwardCap));
+    }
+
+    // ── SmartMotorController control methods ──────────────────────────────
+
     @Override
     public void setPosition(Angle position) {
-        motor.setControl(motionMagicRequest.withPosition(position.in(Rotations)));
+        double ff = calculateFeedforward(inputs.velocityRadPerSec, inputs.positionRad);
+        sendPositionControl(position.in(Rotations), ff);
     }
 
     @Override
     public void setVelocity(AngularVelocity velocity) {
-        motor.setControl(velocityRequest.withVelocity(velocity.in(RotationsPerSecond)));
+        double ff = calculateFeedforward(velocity.in(RadiansPerSecond), inputs.positionRad);
+        sendVelocityControl(velocity.in(RotationsPerSecond), ff);
     }
 
     @Override
     public void setVoltage(Voltage voltage) {
-        motor.setControl(voltageRequest.withOutput(voltage.in(Volts)));
+        if (powerConstraint.fullyDisabled) { motor.stopMotor(); return; }
+        motor.setControl(voltageRequest.withOutput(voltage.in(Volts) * powerConstraint.feedforwardCap));
     }
 
     @Override
     public void setLinearPosition(Distance position) {
         double rotations = position.in(Meters) / config.mechanismCircumference.in(Meters);
-        motor.setControl(motionMagicRequest.withPosition(rotations));
+        sendPositionControl(rotations, 0.0);
     }
 
     @Override
     public void setLinearVelocity(LinearVelocity velocity) {
         double rps = velocity.in(MetersPerSecond) / config.mechanismCircumference.in(Meters);
-        motor.setControl(velocityRequest.withVelocity(rps));
+        sendVelocityControl(rps, 0.0);
     }
 
     @Override
@@ -330,6 +488,11 @@ public class TalonFXWrapper implements SmartMotorController {
         var simState = motor.getSimState();
         simState.setRawRotorPosition(position.in(Rotations) * config.gearing);
         simState.setRotorVelocity(velocity.in(RotationsPerSecond) * config.gearing);
+        if (cancoder != null) {
+            var cancoderSimState = cancoder.getSimState();
+            cancoderSimState.setRawPosition(position.in(Rotations));
+            cancoderSimState.setVelocity(velocity.in(RotationsPerSecond));
+        }
     }
 
     @Override

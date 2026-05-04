@@ -32,6 +32,10 @@ public interface SmartMotorController {
         public double[] followerStatorCurrentAmps = new double[0];
         public double[] followerTempCelsius = new double[0];
         public boolean[] followerConnected = new boolean[0];
+
+        // CANcoder absolute position (0.0 / false when no CANcoder is configured)
+        public double cancoderPositionRad = 0.0;
+        public boolean cancoderConnected = false;
     }
 
     void setPosition(Angle position);
@@ -70,4 +74,10 @@ public interface SmartMotorController {
     void reconfigure();
 
     default double getSimVoltage() { return 0.0; }
+    default double getHorizontalZeroRad() { return 0.0; }
+    default void setHorizontalZeroRad(double rad) {}
+
+    default Angle getCANcoderPosition() {
+        return Radians.of(getInputs().cancoderPositionRad);
+    }
 }
