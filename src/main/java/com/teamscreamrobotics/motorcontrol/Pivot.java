@@ -69,10 +69,9 @@ public class Pivot extends SmartMechanism {
     @Override
     public void simIterate() {
         if (pivotSim == null) return;
+        if (Logger.hasReplaySource()) return;
 
-        motor.simIterate(0.020);
-
-        pivotSim.setInputVoltage(motor.getVoltage().in(Volts));
+        pivotSim.setInputVoltage(motor.getSimVoltage());
         pivotSim.update(0.020);
 
         motor.simUpdate(

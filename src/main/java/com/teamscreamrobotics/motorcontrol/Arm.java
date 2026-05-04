@@ -76,10 +76,9 @@ public class Arm extends SmartMechanism {
     @Override
     public void simIterate() {
         if (armSim == null) return;
+        if (Logger.hasReplaySource()) return;
 
-        motor.simIterate(0.020);
-
-        armSim.setInputVoltage(motor.getVoltage().in(Volts));
+        armSim.setInputVoltage(motor.getSimVoltage());
         armSim.update(0.020);
 
         motor.simUpdate(

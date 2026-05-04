@@ -68,4 +68,6 @@ public interface SmartMotorController {
     void simIterate(double dtSeconds);
     void simUpdate(Angle position, AngularVelocity velocity);
     void reconfigure();
+
+    default double getSimVoltage() { return 0.0; }
 }

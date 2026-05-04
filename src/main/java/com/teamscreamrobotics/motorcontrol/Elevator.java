@@ -75,10 +75,9 @@ public class Elevator extends SmartMechanism {
     @Override
     public void simIterate() {
         if (elevatorSim == null) return;
+        if (Logger.hasReplaySource()) return;
 
-        motor.simIterate(0.020);
-
-        elevatorSim.setInputVoltage(motor.getVoltage().in(Volts));
+        elevatorSim.setInputVoltage(motor.getSimVoltage());
         elevatorSim.update(0.020);
 
         double circumference = config.mechanismCircumference.in(Meters);

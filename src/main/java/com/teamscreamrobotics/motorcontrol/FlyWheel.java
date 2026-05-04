@@ -1,5 +1,6 @@
 package com.teamscreamrobotics.motorcontrol;
 
+import edu.wpi.first.math.controller.LinearQuadraticRegulator;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.simulation.FlywheelSim;
@@ -107,10 +108,9 @@ public class FlyWheel extends SmartMechanism {
     @Override
     public void simIterate() {
         if (flywheelSim == null) return;
+        if (Logger.hasReplaySource()) return;
 
-        motor.simIterate(0.020);
-
-        flywheelSim.setInputVoltage(motor.getVoltage().in(Volts));
+        flywheelSim.setInputVoltage(motor.getSimVoltage());
         flywheelSim.update(0.020);
 
         double velocityRps = flywheelSim.getAngularVelocityRPM() / 60.0;

@@ -333,6 +333,11 @@ public class TalonFXWrapper implements SmartMotorController {
     }
 
     @Override
+    public double getSimVoltage() {
+        return isSimulation ? motor.getSimState().getMotorVoltage() : 0.0;
+    }
+
+    @Override
     public void reconfigure() {
         applyConfiguration();
     }
