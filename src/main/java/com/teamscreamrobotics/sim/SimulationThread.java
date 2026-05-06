@@ -12,6 +12,7 @@ import com.teamscreamrobotics.drivers.TalonFXSubsystem.TalonFXSubsystemSimConsta
  * Drives a {@link SimInterface} at a fixed period, either inline (called from {@code periodic()})
  * or on a dedicated background thread using a WPILib {@link Notifier}.
  */
+@Deprecated(since = "2027")
 public class SimulationThread {
 
   private String name;

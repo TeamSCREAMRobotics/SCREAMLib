@@ -84,6 +84,7 @@ public class FlyWheel extends SmartMechanism {
     }
 
     public LinearVelocity getSurfaceVelocity() {
+        if (flyWheelConfig.diameter == null) return MetersPerSecond.of(0.0);
         double radiusMeters = flyWheelConfig.diameter.in(Meters) / 2.0;
         return MetersPerSecond.of(getVelocity().in(RotationsPerSecond) * 2.0 * Math.PI * radiusMeters);
     }

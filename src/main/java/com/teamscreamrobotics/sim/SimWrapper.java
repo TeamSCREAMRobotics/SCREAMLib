@@ -14,6 +14,7 @@ import com.teamscreamrobotics.data.Length;
  * Adapts WPILib simulation models ({@link DCMotorSim}, {@link ElevatorSim}, etc.) to the
  * {@link SimInterface} contract, normalizing position and velocity to rotations / rotations-per-second.
  */
+@Deprecated(since = "2027")
 public class SimWrapper implements SimInterface {
 
   DCMotorSim dcSim;

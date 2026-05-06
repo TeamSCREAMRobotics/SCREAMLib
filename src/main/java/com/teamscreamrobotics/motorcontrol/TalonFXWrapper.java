@@ -22,7 +22,6 @@ import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
-
 import com.teamscreamrobotics.motorcontrol.SmartMotorControllerConfig.FollowerConfig;
 import com.teamscreamrobotics.power.PowerConsumer;
 import com.teamscreamrobotics.power.PowerConstraint;
@@ -33,7 +32,6 @@ import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.controller.ElevatorFeedforward;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
@@ -42,7 +40,6 @@ import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.RobotBase;
-import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 
 import org.littletonrobotics.junction.Logger;
 
@@ -91,7 +88,6 @@ public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
 
     private final SmartMotorControllerInputsAutoLogged inputs = new SmartMotorControllerInputsAutoLogged();
 
-    private final DCMotorSim motorSim;
     private final boolean isSimulation;
 
     @SuppressWarnings("unchecked")
@@ -185,14 +181,6 @@ public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
         if (cancoderPositionSignal != null && config.cancoder.useAsAbsolutePosition()) {
             cancoderPositionSignal.refresh();
             motor.setPosition(cancoderPositionSignal.getValueAsDouble());
-        }
-
-        if (isSimulation) {
-            motorSim = new DCMotorSim(
-                    LinearSystemId.createDCMotorSystem(motorModel, 0.001, config.gearing),
-                    motorModel);
-        } else {
-            motorSim = null;
         }
 
         PowerManager.register(this);
@@ -312,7 +300,10 @@ public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
             ElevatorFeedforward ff = (isSimulation && config.simElevatorFeedforward != null)
                     ? config.simElevatorFeedforward : config.elevatorFeedforward;
             if (ff == null) return 0.0;
-            return ff.calculate(velocityRadPerSec);
+            // ElevatorFeedforward expects m/s; convert from rad/s via circumference.
+            double linearVelocityMps = velocityRadPerSec / (2.0 * Math.PI)
+                    * config.mechanismCircumference.in(Meters);
+            return ff.calculate(linearVelocityMps);
         }
         if (config.simpleFeedforward != null || config.simSimpleFeedforward != null) {
             SimpleMotorFeedforward ff = (isSimulation && config.simSimpleFeedforward != null)
@@ -413,14 +404,19 @@ public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
 
     @Override
     public void setLinearPosition(Distance position) {
-        double rotations = position.in(Meters) / config.mechanismCircumference.in(Meters);
-        sendPositionControl(rotations, 0.0);
+        double circumference = config.mechanismCircumference.in(Meters);
+        double rotations = position.in(Meters) / circumference;
+        double ff = calculateFeedforward(inputs.velocityRadPerSec, inputs.positionRad);
+        sendPositionControl(rotations, ff);
     }
 
     @Override
     public void setLinearVelocity(LinearVelocity velocity) {
-        double rps = velocity.in(MetersPerSecond) / config.mechanismCircumference.in(Meters);
-        sendVelocityControl(rps, 0.0);
+        double circumference = config.mechanismCircumference.in(Meters);
+        double rps = velocity.in(MetersPerSecond) / circumference;
+        double velRadPerSec = rps * 2.0 * Math.PI;
+        double ff = calculateFeedforward(velRadPerSec, inputs.positionRad);
+        sendVelocityControl(rps, ff);
     }
 
     @Override
@@ -470,16 +466,7 @@ public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
 
     @Override
     public void simIterate(double dtSeconds) {
-        if (motorSim == null) return;
-        // Physics must not run during replay -- AKit provides all sensor values from the log.
-        if (Logger.hasReplaySource()) return;
-
-        // Only the master DCMotorSim is advanced; Phoenix propagates sim state to followers.
-        var simState = motor.getSimState();
-        motorSim.setInputVoltage(simState.getMotorVoltage());
-        motorSim.update(dtSeconds);
-        simState.setRawRotorPosition(motorSim.getAngularPositionRotations() * config.gearing);
-        simState.setRotorVelocity(motorSim.getAngularVelocityRPM() / 60.0 * config.gearing);
+        // Physics is driven by the owning SmartMechanism (Arm, Elevator, Pivot, etc.) via simUpdate().
     }
 
     @Override
@@ -503,5 +490,10 @@ public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
     @Override
     public void reconfigure() {
         applyConfiguration();
+        for (TalonFX follower : followerMotors) {
+            TalonFXConfiguration followerCfg = new TalonFXConfiguration();
+            followerCfg.MotorOutput = new MotorOutputConfigs().withNeutralMode(config.idleMode);
+            follower.getConfigurator().apply(followerCfg);
+        }
     }
 }

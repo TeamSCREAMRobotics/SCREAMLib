@@ -1,6 +1,7 @@
 package com.teamscreamrobotics.sim;
 
 /** Common interface for physics simulation backends (DC motor, elevator, arm, flywheel). */
+@Deprecated(since = "2027")
 public interface SimInterface {
   /**
    * Advances the simulation by {@code deltaTime} seconds.

@@ -57,6 +57,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
  *    <li> Logging with DogLog
  *  </ul>
  */
+@Deprecated(since = "2027")
 public class TalonFXSubsystem extends SubsystemBase {
 
   /**
@@ -79,6 +80,7 @@ public class TalonFXSubsystem extends SubsystemBase {
      *                   </ul>
      *                 </ul>
      */
+  @Deprecated(since = "2027")
   public static record CANDevice(Integer id, String canbus) {
     public CANDevice() {
       this(null, null);
@@ -94,6 +96,7 @@ public class TalonFXSubsystem extends SubsystemBase {
    * @param device CANDevice constants.
    * @param invert InvertedValue of the device.
    */
+  @Deprecated(since = "2027")
   public static record TalonFXConstants(CANDevice device, InvertedValue invert) {
     public TalonFXConstants() {
       this(null, null);
@@ -106,8 +109,10 @@ public class TalonFXSubsystem extends SubsystemBase {
    * @param device CANDevice constants.
    * @param config Configuration for the device.
    */
+  @Deprecated(since = "2027")
   public static record CANCoderConstants(CANDevice device, CANcoderConfiguration config) {}
 
+  @Deprecated(since = "2027")
   public interface TalonFXSubsystemGoal {
     DoubleSupplier target();
 
@@ -118,6 +123,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     }
   }
 
+  @Deprecated(since = "2027")
   public record TalonFXSubsystemSimConstants(
       SimWrapper sim,
       double gearing,
@@ -139,6 +145,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     }
   }
 
+  @Deprecated(since = "2027")
   public static enum ControlType {
     MOTION_MAGIC_POSITION,
     MOTION_MAGIC_VELOCITY,
@@ -148,6 +155,7 @@ public class TalonFXSubsystem extends SubsystemBase {
     DUTY_CYCLE;
   }
 
+  @Deprecated(since = "2027")
   public static class TalonFXSubsystemConfiguration {
     public String name = "ERROR_ASSIGN_A_NAME";
 

@@ -50,11 +50,13 @@ public interface SmartMotorController {
     AngularVelocity getMechanismVelocity();
 
     default Distance getLinearPosition() {
+        if (getConfig().mechanismCircumference == null) return Meters.of(0.0);
         double circumference = getConfig().mechanismCircumference.in(Meters);
         return Meters.of(getMechanismPosition().in(Radians) / (2.0 * Math.PI) * circumference);
     }
 
     default LinearVelocity getLinearVelocity() {
+        if (getConfig().mechanismCircumference == null) return MetersPerSecond.of(0.0);
         double circumference = getConfig().mechanismCircumference.in(Meters);
         return MetersPerSecond.of(getMechanismVelocity().in(RadiansPerSecond) / (2.0 * Math.PI) * circumference);
     }

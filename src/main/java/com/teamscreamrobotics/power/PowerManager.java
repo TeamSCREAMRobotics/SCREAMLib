@@ -156,7 +156,7 @@ public final class PowerManager {
         } else {
             debounceCount = Math.max(debounceCount - 1, 0);
         }
-        // Enter constrained state after sustained demand; exit immediately when clear
+        // Enter and exit constrained state only after sustained demand (symmetric, 3-cycle debounce)
         if (debounceCount >= DEBOUNCE_CYCLES) constrained = true;
         if (debounceCount == 0)              constrained = false;
 
@@ -209,7 +209,7 @@ public final class PowerManager {
                 if (channels.length == 0) continue;
                 double totalAmps = 0;
                 for (int ch : channels) totalAmps += pdh.getCurrent(ch);
-                Logger.recordOutput("PowerManager/Consumers/" + c.getConsumerName() + "Amps", totalAmps);
+                Logger.recordOutput("PowerManager/Consumers/" + c.getConsumerName() + "/Amps", totalAmps);
             }
         }
     }
@@ -224,7 +224,7 @@ public final class PowerManager {
     private static PowerConstraint allocate(double demand, double budget, double floorRatio) {
         if (demand <= 0 || budget >= demand) return PowerConstraint.UNCONSTRAINED;
         double ratio = budget / demand;
-        if (ratio < floorRatio) return PowerConstraint.STOP;
+        if (ratio <= 0.0 || ratio < floorRatio) return PowerConstraint.STOP;
         // FF cap is slightly tighter than velocity: gravity feedforward is the
         // marginal watts that tip an already-loaded mechanism into overload.
         return new PowerConstraint(ratio, ratio, ratio * 0.9, false);
