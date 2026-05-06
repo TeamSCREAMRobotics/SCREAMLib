@@ -361,7 +361,7 @@ public class Trajectory {
             t += dt;
             
             // Store point every 10ms for efficiency
-            if ((int)(t * 100) % 1 == 0) {
+            if ((int)(t * 1000) % 10 == 0) {
                 points.add(new TrajectoryPoint(t, x, y, vx, vy));
             }
         }
