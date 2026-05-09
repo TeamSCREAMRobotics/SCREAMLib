@@ -8,6 +8,7 @@ import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -31,7 +32,7 @@ public class Turret extends SmartMechanism {
 
     private Angle setpoint;
     private double lagCorrectionDeg = 0.0;
-    private boolean driftWarningFired = false;
+    private double lastDriftWarningTime = -10.0;
 
     public Turret(TurretConfig turretConfig) {
         super(turretConfig.motor, turretConfig.resolveLogPrefix());
@@ -93,6 +94,17 @@ public class Turret extends SmartMechanism {
 
     // ── Commands ──────────────────────────────────────────────────────────────
 
+    public Command runWithProfile(Angle angle) {
+        return Commands.run(() -> setAngleWithProfile(angle), config.subsystem)
+                .withName("Turret.runWithProfile(" + angle.in(Degrees) + " deg)");
+    }
+
+    public Command runToWithProfile(Angle angle) {
+        return Commands.run(() -> setAngleWithProfile(angle), config.subsystem)
+                .until(this::atAngle)
+                .withName("Turret.runToWithProfile(" + angle.in(Degrees) + " deg)");
+    }
+
     public Command run(Angle angle) {
         return Commands.run(() -> setAngle(angle), config.subsystem)
                 .withName("Turret.run(" + angle.in(Degrees) + " deg)");
@@ -122,8 +134,28 @@ public class Turret extends SmartMechanism {
     // ── Control ───────────────────────────────────────────────────────────────
 
     /**
-     * Commands the turret to the given angle with optional lag compensation applied.
+     * Commands the turret to the given angle via Motion Magic with optional lag compensation.
      * The stored setpoint (used for {@link #atAngle()}) is always the uncompensated target.
+     */
+    public void setAngleWithProfile(Angle angle) {
+        this.setpoint = angle;
+        Angle target = angle;
+
+        if (turretConfig.drivetrainAngularVelocitySupplier != null) {
+            double omegaRadPerSec = turretConfig.drivetrainAngularVelocitySupplier.get()
+                    .in(RadiansPerSecond);
+            double lagCorrectionRad = -omegaRadPerSec * turretConfig.lagCompensationSeconds;
+            target = Radians.of(target.in(Radians) + lagCorrectionRad);
+            lagCorrectionDeg = Math.toDegrees(lagCorrectionRad);
+        }
+
+        motor.setPositionProfiled(target);
+    }
+
+    /**
+     * Commands the turret directly to {@code angle} via PID, bypassing Motion Magic.
+     * Prefer this over {@link #setAngle} for high-rate dynamic tracking where profiling
+     * would add unnecessary lag. Lag compensation is still applied when configured.
      */
     public void setAngle(Angle angle) {
         this.setpoint = angle;
@@ -221,14 +253,13 @@ public class Turret extends SmartMechanism {
         Logger.recordOutput(logPrefix + "CRT/LiveAbsolutePositionDegrees", livePosition.in(Degrees));
         Logger.recordOutput(logPrefix + "CRT/DriftDegrees", driftDeg);
 
-        if (driftDeg > crt.driftWarningThreshold().in(Degrees) && !driftWarningFired) {
+        if (driftDeg > crt.driftWarningThreshold().in(Degrees)
+                && Timer.getFPGATimestamp() - lastDriftWarningTime >= 10.0) {
             DriverStation.reportWarning(
                     String.format("Turret CRT position drift: %.1f deg (threshold %.1f deg)",
                             driftDeg, crt.driftWarningThreshold().in(Degrees)),
                     false);
-            driftWarningFired = true;
-        } else if (driftDeg <= crt.driftWarningThreshold().in(Degrees)) {
-            driftWarningFired = false;
+            lastDriftWarningTime = Timer.getFPGATimestamp();
         }
     }
 

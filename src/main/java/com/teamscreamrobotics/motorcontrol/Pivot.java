@@ -38,6 +38,17 @@ public class Pivot extends SmartMechanism {
         }
     }
 
+    public Command runWithProfile(Angle angle) {
+        return Commands.run(() -> setAngleWithProfile(angle), config.subsystem)
+                .withName("Pivot.runWithProfile(" + angle.in(Degrees) + " deg)");
+    }
+
+    public Command runToWithProfile(Angle angle) {
+        return Commands.run(() -> setAngleWithProfile(angle), config.subsystem)
+                .until(this::atAngle)
+                .withName("Pivot.runToWithProfile(" + angle.in(Degrees) + " deg)");
+    }
+
     public Command run(Angle angle) {
         return Commands.run(() -> setAngle(angle), config.subsystem)
                 .withName("Pivot.run(" + angle.in(Degrees) + " deg)");
@@ -47,6 +58,11 @@ public class Pivot extends SmartMechanism {
         return Commands.run(() -> setAngle(angle), config.subsystem)
                 .until(this::atAngle)
                 .withName("Pivot.runTo(" + angle.in(Degrees) + " deg)");
+    }
+
+    public void setAngleWithProfile(Angle angle) {
+        this.setpoint = angle;
+        motor.setPositionProfiled(angle);
     }
 
     public void setAngle(Angle angle) {
@@ -65,6 +81,33 @@ public class Pivot extends SmartMechanism {
 
     public boolean atAngle(Angle target, Angle tolerance) {
         return Math.abs(getAngle().in(Degrees) - target.in(Degrees)) <= tolerance.in(Degrees);
+    }
+
+    // ── Characterization ──────────────────────────────────────────────────────
+
+    /**
+     * Ramps open-loop voltage at the pivot's horizontal-zero position until it holds.
+     * The measured holding voltage is {@code kG}.
+     *
+     * <p>Position the pivot at its horizontal-zero angle before running.
+     * Read {@code KgEstimate} from AKit logs and use it in your feedforward constructor.
+     * Tune {@code kS} and {@code kV} via tuning mode or empirically.
+     *
+     * <p>WARNING: This command drives the mechanism with open-loop voltage.
+     * Ensure soft limits are enabled and the mechanism is clear of
+     * obstructions before running. The command will not stop automatically
+     * if the mechanism hits a hard stop -- use with caution.
+     * Recommended: run only in a controlled environment, not during competition.
+     */
+    public Command gravityCharacterization() {
+        Angle horizontalZero = Radians.of(motor.getHorizontalZeroRad());
+        return Commands.sequence(
+            runWithProfile(horizontalZero).until(this::atAngle).withTimeout(3.0),
+            voltageRampCommand(3.0, 0.01, 0.05, 10, kg -> {
+                Logger.recordOutput(logPrefix + "GravityChar/KgEstimate", kg);
+                Logger.recordOutput(logPrefix + "GravityChar/Complete", true);
+            }).withTimeout(10.0)
+        ).withName("Pivot GravityCharacterization");
     }
 
     @Override

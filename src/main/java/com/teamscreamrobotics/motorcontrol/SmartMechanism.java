@@ -4,6 +4,15 @@ import com.teamscreamrobotics.motorcontrol.SmartMotorControllerConfig.MechanismG
 
 import org.littletonrobotics.junction.Logger;
 
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+
+import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
+
+import static edu.wpi.first.units.Units.RadiansPerSecond;
+import static edu.wpi.first.units.Units.Volts;
+
 /**
  * Abstract base class for all SCREAMLib mechanisms.
  *
@@ -89,5 +98,134 @@ public abstract class SmartMechanism {
 
     public static MechanismGearing gearing(MechanismGearing g) {
         return g;
+    }
+
+    // ── Tuning ────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns a command that continuously applies dashboard gain updates and commands
+     * the mechanism to the supplied setpoint (in rotations). Runs until interrupted.
+     *
+     * <h2>Example</h2>
+     * <pre>
+     *   private final MechanismTuner armTuner = new MechanismTuner(
+     *       "Arm", new TuningConfig(80.0, 0.0, 2.0, 3.0, 6.0), motor);
+     *
+     *   public Command armTuningMode(DoubleSupplier setpointRotations) {
+     *       return arm.tuningMode(armTuner, setpointRotations);
+     *   }
+     *
+     *   // Bind in RobotContainer:
+     *   // operator.povUp().whileTrue(subsystem.armTuningMode(
+     *   //     () -> SmartDashboard.getNumber("Tuning/Arm/Setpoint", 0.0)));
+     * </pre>
+     */
+    public Command tuningMode(MechanismTuner tuner, DoubleSupplier setpointSupplier) {
+        return Commands.run(() -> {
+            tuner.update();
+            tuner.setGoalForTuning(setpointSupplier.getAsDouble());
+        }, config.subsystem)
+        .withName(tuner.getMechanismName() + " Tuning Mode");
+    }
+
+    // ── Characterization helpers ──────────────────────────────────────────────
+
+    /**
+     * Slowly ramps open-loop voltage until the mechanism holds steady, then invokes
+     * {@code onConverged} with the holding voltage. Always resets voltage to 0 V on
+     * exit, even if interrupted.
+     *
+     * <p>The returned command has no built-in timeout — wrap with {@code .withTimeout()}
+     * at the call site if needed.
+     *
+     * @param maxVoltage                 upper voltage limit (safety cap)
+     * @param stepVoltagePerCycle        voltage increment per 20 ms loop cycle
+     * @param velocityThresholdRadPerSec mechanism is considered "holding" when
+     *                                   |velocity| is below this value
+     * @param consecutiveCyclesRequired  number of consecutive cycles below threshold
+     *                                   required before declaring convergence
+     * @param onConverged                called with the holding voltage on convergence;
+     *                                   NOT called on timeout or interrupt
+     */
+    protected Command voltageRampCommand(
+            double maxVoltage,
+            double stepVoltagePerCycle,
+            double velocityThresholdRadPerSec,
+            int consecutiveCyclesRequired,
+            Consumer<Double> onConverged) {
+
+        double[] currentVoltage = {0.0};
+        int[]    steadyCount    = {0};
+
+        return Commands.sequence(
+            Commands.runOnce(() -> {
+                currentVoltage[0] = 0.0;
+                steadyCount[0]    = 0;
+            }),
+            Commands.run(() -> {
+                currentVoltage[0] = Math.min(currentVoltage[0] + stepVoltagePerCycle, maxVoltage);
+                motor.setVoltage(Volts.of(currentVoltage[0]));
+
+                double vel = Math.abs(motor.getMechanismVelocity().in(RadiansPerSecond));
+                if (vel < velocityThresholdRadPerSec) {
+                    steadyCount[0]++;
+                } else {
+                    steadyCount[0] = 0;
+                }
+            }, config.subsystem)
+            .until(() -> steadyCount[0] >= consecutiveCyclesRequired)
+        )
+        .andThen(Commands.runOnce(() -> onConverged.accept(currentVoltage[0])))
+        .finallyDo(() -> motor.setVoltage(Volts.of(0.0)));
+    }
+
+    /**
+     * Applies {@code startVoltage}, then slowly ramps voltage down until the mechanism
+     * holds steady. Avoids the false-positive that {@link #voltageRampCommand} produces
+     * when the mechanism starts at rest (e.g. an elevator sitting on its lower hard stop).
+     *
+     * <p>The returned command has no built-in timeout — wrap with {@code .withTimeout()}
+     * at the call site if needed.
+     *
+     * @param startVoltage               initial voltage, should be above kG to ensure
+     *                                   the mechanism lifts off before ramping down
+     * @param stepVoltagePerCycle        voltage decrement per 20 ms loop cycle
+     * @param velocityThresholdRadPerSec mechanism is considered "holding" when
+     *                                   |velocity| is below this value
+     * @param consecutiveCyclesRequired  number of consecutive cycles below threshold
+     *                                   required before declaring convergence
+     * @param onConverged                called with the holding voltage on convergence;
+     *                                   NOT called on timeout or interrupt
+     */
+    protected Command voltageRampDownCommand(
+            double startVoltage,
+            double stepVoltagePerCycle,
+            double velocityThresholdRadPerSec,
+            int consecutiveCyclesRequired,
+            Consumer<Double> onConverged) {
+
+        double[] currentVoltage = {0.0};
+        int[]    steadyCount    = {0};
+
+        return Commands.sequence(
+            Commands.runOnce(() -> {
+                currentVoltage[0] = startVoltage;
+                steadyCount[0]    = 0;
+            }),
+            Commands.run(() -> {
+                currentVoltage[0] = Math.max(currentVoltage[0] - stepVoltagePerCycle, 0.0);
+                motor.setVoltage(Volts.of(currentVoltage[0]));
+
+                double vel = Math.abs(motor.getMechanismVelocity().in(RadiansPerSecond));
+                if (vel < velocityThresholdRadPerSec) {
+                    steadyCount[0]++;
+                } else {
+                    steadyCount[0] = 0;
+                }
+            }, config.subsystem)
+            .until(() -> steadyCount[0] >= consecutiveCyclesRequired)
+        )
+        .andThen(Commands.runOnce(() -> onConverged.accept(currentVoltage[0])))
+        .finallyDo(() -> motor.setVoltage(Volts.of(0.0)));
     }
 }

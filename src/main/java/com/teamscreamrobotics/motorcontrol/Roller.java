@@ -5,6 +5,7 @@ import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.simulation.FlywheelSim;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 
 import org.littletonrobotics.junction.Logger;
 
@@ -20,6 +21,7 @@ public class Roller extends SmartMechanism {
 
     private final RollerConfig rollerConfig;
     private final FlywheelSim flywheelSim;
+    private final SysIdRoutine sysIdRoutine;
     private double simPositionRotations = 0.0;
 
     public Roller(RollerConfig rollerConfig) {
@@ -35,6 +37,20 @@ public class Roller extends SmartMechanism {
         } else {
             flywheelSim = null;
         }
+
+        sysIdRoutine = new SysIdRoutine(
+                new SysIdRoutine.Config(),
+                new SysIdRoutine.Mechanism(
+                        (voltage) -> motor.setVoltage(voltage),
+                        (log) -> {
+                            Logger.recordOutput(logPrefix + "SysId/Voltage",
+                                    motor.getVoltage().in(Volts));
+                            Logger.recordOutput(logPrefix + "SysId/Velocity",
+                                    motor.getMechanismVelocity().in(RotationsPerSecond));
+                            Logger.recordOutput(logPrefix + "SysId/Position",
+                                    motor.getMechanismPosition().in(Rotations));
+                        },
+                        config.subsystem));
     }
 
     public Command run(AngularVelocity velocity) {
@@ -79,6 +95,14 @@ public class Roller extends SmartMechanism {
 
     public boolean atVelocity(AngularVelocity target, AngularVelocity tolerance) {
         return Math.abs(getVelocity().in(RPM) - target.in(RPM)) <= tolerance.in(RPM);
+    }
+
+    public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
+        return sysIdRoutine.quasistatic(direction);
+    }
+
+    public Command sysIdDynamic(SysIdRoutine.Direction direction) {
+        return sysIdRoutine.dynamic(direction);
     }
 
     @Override

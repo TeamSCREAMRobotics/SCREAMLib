@@ -27,7 +27,7 @@ public class ArmAdapter implements MechanismAdapter {
 
     @Override
     public void setSetpoint(double degrees) {
-        arm.setAngle(Degrees.of(degrees));
+        arm.setAngleWithProfile(Degrees.of(degrees));
     }
 
     @Override

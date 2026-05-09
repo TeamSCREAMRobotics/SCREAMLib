@@ -2,6 +2,7 @@ package com.teamscreamrobotics.power;
 
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.PowerDistribution;
+import edu.wpi.first.wpilibj.Timer;
 import org.littletonrobotics.junction.Logger;
 
 import java.util.ArrayList;
@@ -70,7 +71,7 @@ public final class PowerManager {
     private static double filteredCurrent  = 0.0;
     private static int    debounceCount    = 0;
     private static boolean constrained     = false;
-    private static boolean lowBatteryWarned = false;
+    private static double lastBatteryWarningTime = -10.0;
 
     // ── Public API ────────────────────────────────────────────────────────
 
@@ -192,14 +193,12 @@ public final class PowerManager {
         boolean batteryLow = filteredVoltage < LOW_BATTERY_WARNING_V
                 && filteredCurrent < IDLE_CURRENT_THRESHOLD_A
                 && !DriverStation.isFMSAttached();
-        if (batteryLow && !lowBatteryWarned) {
+        if (batteryLow && Timer.getFPGATimestamp() - lastBatteryWarningTime >= 10.0) {
             DriverStation.reportWarning(
                     String.format("Battery voltage low (%.1fV at idle) — consider changing the battery",
                             filteredVoltage),
                     false);
-            lowBatteryWarned = true;
-        } else if (!batteryLow) {
-            lowBatteryWarned = false;
+            lastBatteryWarningTime = Timer.getFPGATimestamp();
         }
 
         // Per-consumer PDH channel current (logged only when channels are mapped)

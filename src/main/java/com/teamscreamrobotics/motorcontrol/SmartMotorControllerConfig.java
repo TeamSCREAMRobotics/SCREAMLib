@@ -293,6 +293,7 @@ public class SmartMotorControllerConfig {
         return this;
     }
 
+
     public SmartMotorControllerConfig withCANcoder(CANcoderConfig cancoder) {
         this.cancoder = cancoder;
         return this;

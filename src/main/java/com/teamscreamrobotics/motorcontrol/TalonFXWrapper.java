@@ -16,6 +16,7 @@ import com.ctre.phoenix6.controls.DynamicMotionMagicVoltage;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
+import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.CANcoder;
@@ -81,10 +82,12 @@ public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
 
     private final MotionMagicVoltage motionMagicRequest = new MotionMagicVoltage(0).withEnableFOC(false);
     private final DynamicMotionMagicVoltage dynMotionMagicRequest = new DynamicMotionMagicVoltage(0, 0, 0).withEnableFOC(false);
+    private final PositionVoltage positionVoltageRequest = new PositionVoltage(0).withEnableFOC(false);
     private final VelocityVoltage velocityRequest = new VelocityVoltage(0).withEnableFOC(false);
     private final VoltageOut voltageRequest = new VoltageOut(0);
 
     private PowerConstraint powerConstraint = PowerConstraint.UNCONSTRAINED;
+    private double feedforwardOverrideVolts = Double.NaN;
 
     private final SmartMotorControllerInputsAutoLogged inputs = new SmartMotorControllerInputsAutoLogged();
 
@@ -289,7 +292,17 @@ public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
         return logPrefix;
     }
 
+    @Override
+    public void setFeedforwardOverride(double volts) {
+        this.feedforwardOverrideVolts = volts;
+    }
+
     private double calculateFeedforward(double velocityRadPerSec, double positionRad) {
+        if (!Double.isNaN(feedforwardOverrideVolts)) {
+            double ff = feedforwardOverrideVolts;
+            feedforwardOverrideVolts = Double.NaN;
+            return ff;
+        }
         if (config.armFeedforward != null || config.simArmFeedforward != null) {
             ArmFeedforward ff = (isSimulation && config.simArmFeedforward != null)
                     ? config.simArmFeedforward : config.armFeedforward;
@@ -385,9 +398,18 @@ public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
     // ── SmartMotorController control methods ──────────────────────────────
 
     @Override
-    public void setPosition(Angle position) {
+    public void setPositionProfiled(Angle position) {
         double ff = calculateFeedforward(inputs.velocityRadPerSec, inputs.positionRad);
         sendPositionControl(position.in(Rotations), ff);
+    }
+
+    @Override
+    public void setPosition(Angle position) {
+        if (powerConstraint.fullyDisabled) { motor.stopMotor(); return; }
+        double ff = calculateFeedforward(inputs.velocityRadPerSec, inputs.positionRad);
+        motor.setControl(positionVoltageRequest
+                .withPosition(position.in(Rotations))
+                .withFeedForward(ff * powerConstraint.feedforwardCap));
     }
 
     @Override
@@ -403,11 +425,22 @@ public class TalonFXWrapper implements SmartMotorController, PowerConsumer {
     }
 
     @Override
-    public void setLinearPosition(Distance position) {
+    public void setLinearPositionProfiled(Distance position) {
         double circumference = config.mechanismCircumference.in(Meters);
         double rotations = position.in(Meters) / circumference;
         double ff = calculateFeedforward(inputs.velocityRadPerSec, inputs.positionRad);
         sendPositionControl(rotations, ff);
+    }
+
+    @Override
+    public void setLinearPosition(Distance position) {
+        if (powerConstraint.fullyDisabled) { motor.stopMotor(); return; }
+        double circumference = config.mechanismCircumference.in(Meters);
+        double rotations = position.in(Meters) / circumference;
+        double ff = calculateFeedforward(inputs.velocityRadPerSec, inputs.positionRad);
+        motor.setControl(positionVoltageRequest
+                .withPosition(rotations)
+                .withFeedForward(ff * powerConstraint.feedforwardCap));
     }
 
     @Override

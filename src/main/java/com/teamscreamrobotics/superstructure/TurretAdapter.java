@@ -26,7 +26,7 @@ public class TurretAdapter implements MechanismAdapter {
 
     @Override
     public void setSetpoint(double degrees) {
-        turret.setAngle(Degrees.of(degrees));
+        turret.setAngleWithProfile(Degrees.of(degrees));
     }
 
     @Override

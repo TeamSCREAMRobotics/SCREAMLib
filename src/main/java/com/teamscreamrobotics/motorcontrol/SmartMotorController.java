@@ -38,9 +38,15 @@ public interface SmartMotorController {
         public boolean cancoderConnected = false;
     }
 
+    /** Commands position via Motion Magic (profiled). */
+    void setPositionProfiled(Angle position);
+    /** Commands position directly to the PID controller, bypassing the Motion Magic profile. */
     void setPosition(Angle position);
     void setVelocity(AngularVelocity velocity);
     void setVoltage(Voltage voltage);
+    /** Commands linear position via Motion Magic (profiled). */
+    void setLinearPositionProfiled(Distance position);
+    /** Commands linear position directly to the PID controller, bypassing the Motion Magic profile. */
     void setLinearPosition(Distance position);
     void setLinearVelocity(LinearVelocity velocity);
     void resetEncoder(Angle position);
@@ -78,6 +84,7 @@ public interface SmartMotorController {
     default double getSimVoltage() { return 0.0; }
     default double getHorizontalZeroRad() { return 0.0; }
     default void setHorizontalZeroRad(double rad) {}
+    default void setFeedforwardOverride(double volts) {}
 
     default Angle getCANcoderPosition() {
         return Radians.of(getInputs().cancoderPositionRad);

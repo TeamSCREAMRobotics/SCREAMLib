@@ -27,7 +27,7 @@ public class PivotAdapter implements MechanismAdapter {
 
     @Override
     public void setSetpoint(double degrees) {
-        pivot.setAngle(Degrees.of(degrees));
+        pivot.setAngleWithProfile(Degrees.of(degrees));
     }
 
     @Override

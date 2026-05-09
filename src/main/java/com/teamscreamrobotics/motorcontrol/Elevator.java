@@ -4,6 +4,7 @@ import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.simulation.ElevatorSim;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 
 import org.littletonrobotics.junction.Logger;
 
@@ -16,6 +17,7 @@ public class Elevator extends SmartMechanism {
     private static final Distance DEFAULT_TOLERANCE = Meters.of(0.01);
 
     private final ElevatorSim elevatorSim;
+    private final SysIdRoutine sysIdRoutine;
 
     private Distance setpoint;
 
@@ -42,6 +44,31 @@ public class Elevator extends SmartMechanism {
         } else {
             elevatorSim = null;
         }
+
+        sysIdRoutine = new SysIdRoutine(
+                new SysIdRoutine.Config(),
+                new SysIdRoutine.Mechanism(
+                        (voltage) -> motor.setVoltage(voltage),
+                        (log) -> {
+                            Logger.recordOutput(logPrefix + "SysId/Voltage",
+                                    motor.getVoltage().in(Volts));
+                            Logger.recordOutput(logPrefix + "SysId/VelocityMPS",
+                                    motor.getLinearVelocity().in(MetersPerSecond));
+                            Logger.recordOutput(logPrefix + "SysId/HeightMeters",
+                                    getHeight().in(Meters));
+                        },
+                        config.subsystem));
+    }
+
+    public Command runWithProfile(Distance height) {
+        return Commands.run(() -> setHeightWithProfile(height), config.subsystem)
+                .withName("Elevator.runWithProfile(" + height.in(Meters) + " m)");
+    }
+
+    public Command runToWithProfile(Distance height) {
+        return Commands.run(() -> setHeightWithProfile(height), config.subsystem)
+                .until(this::atHeight)
+                .withName("Elevator.runToWithProfile(" + height.in(Meters) + " m)");
     }
 
     public Command run(Distance height) {
@@ -53,6 +80,11 @@ public class Elevator extends SmartMechanism {
         return Commands.run(() -> setHeight(height), config.subsystem)
                 .until(this::atHeight)
                 .withName("Elevator.runTo(" + height.in(Meters) + " m)");
+    }
+
+    public void setHeightWithProfile(Distance height) {
+        this.setpoint = height;
+        motor.setLinearPositionProfiled(height);
     }
 
     public void setHeight(Distance height) {
@@ -75,6 +107,38 @@ public class Elevator extends SmartMechanism {
 
     public boolean atHeight(Distance target, Distance tolerance) {
         return Math.abs(getHeight().in(Meters) - target.in(Meters)) <= tolerance.in(Meters);
+    }
+
+    // ── Characterization ──────────────────────────────────────────────────────
+
+    /**
+     * Ramps open-loop voltage upward from the elevator's current position until it holds.
+     * The measured holding voltage is {@code kG}.
+     *
+     * <p>Read {@code KgEstimate} from AKit logs and plug it into your
+     * {@code ElevatorFeedforward(kS, kG, kV, kA)} constructor.
+     * Tune {@code kS} and {@code kV} via tuning mode or empirically.
+     *
+     * <p>WARNING: This command drives the mechanism with open-loop voltage.
+     * Ensure soft limits are enabled and the mechanism is clear of
+     * obstructions before running. The command will not stop automatically
+     * if the mechanism hits a hard stop -- use with caution.
+     * Recommended: run only in a controlled environment, not during competition.
+     */
+    public Command gravityCharacterization() {
+        return voltageRampDownCommand(1.5, 0.01, 0.05, 10, kg -> {
+            Logger.recordOutput(logPrefix + "GravityChar/KgEstimate", kg);
+            Logger.recordOutput(logPrefix + "GravityChar/Complete", true);
+        }).withTimeout(10.0)
+        .withName("Elevator GravityCharacterization");
+    }
+
+    public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
+        return sysIdRoutine.quasistatic(direction);
+    }
+
+    public Command sysIdDynamic(SysIdRoutine.Direction direction) {
+        return sysIdRoutine.dynamic(direction);
     }
 
     @Override
