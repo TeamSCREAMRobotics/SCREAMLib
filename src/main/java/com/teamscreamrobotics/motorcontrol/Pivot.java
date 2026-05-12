@@ -1,5 +1,6 @@
 package com.teamscreamrobotics.motorcontrol;
 
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
@@ -8,99 +9,115 @@ import edu.wpi.first.wpilibj2.command.Commands;
 
 import org.littletonrobotics.junction.Logger;
 
-import edu.wpi.first.units.measure.Angle;
-
 import static edu.wpi.first.units.Units.*;
 
+/**
+ * Rotational pivot mechanism driven by a TalonFX.
+ *
+ * <p>Identical control surface to {@link Arm} but uses a {@link DCMotorSim} (flywheel-style)
+ * for simulation rather than {@link edu.wpi.first.wpilibj.simulation.SingleJointedArmSim}.
+ * Intended for mechanisms where gravity effects are handled via feedforward rather than
+ * the simulator model (e.g., wrists, turrets mounted on moving structures).
+ */
 public class Pivot extends SmartMechanism {
 
-    private static final Angle DEFAULT_TOLERANCE = Degrees.of(1.0);
+    private static final Rotation2d DEFAULT_TOLERANCE = Rotation2d.fromDegrees(1.0);
 
+    private final PivotConfig pivotConfig;
     private final DCMotorSim pivotSim;
 
-    private Angle setpoint;
+    private Rotation2d setpoint;
 
+    /** Constructs the pivot, applies motor config, and seeds the encoder to the starting position. */
     public Pivot(PivotConfig pivotConfig) {
         super(pivotConfig.motor, pivotConfig.resolveLogPrefix());
+        pivotConfig.applyBuilt();
+        this.pivotConfig = pivotConfig;
         this.setpoint = pivotConfig.startingPosition;
 
         motor.resetEncoder(pivotConfig.startingPosition);
 
-        if (RobotBase.isSimulation() && config.motorModel != null) {
+        if (RobotBase.isSimulation() && pivotConfig.motorModel != null) {
             pivotSim = new DCMotorSim(
                     LinearSystemId.createDCMotorSystem(
-                            config.motorModel,
+                            pivotConfig.motorModel,
                             pivotConfig.moiKgMetersSquared,
-                            config.gearing),
-                    config.motorModel);
+                            motor.getRuntimeInfo().gearing()),
+                    pivotConfig.motorModel);
         } else {
             pivotSim = null;
         }
     }
 
-    public Command runWithProfile(Angle angle) {
-        return Commands.run(() -> setAngleWithProfile(angle), config.subsystem)
-                .withName("Pivot.runWithProfile(" + angle.in(Degrees) + " deg)");
+    /**
+     * Runs the pivot to {@code angle} continuously using MotionMagic profiled position control.
+     * The command never finishes on its own; use {@link #runToWithProfile} for a one-shot move.
+     */
+    public Command runWithProfile(Rotation2d angle) {
+        return Commands.run(() -> setAngleWithProfile(angle), getSubsystem())
+                .withName("Pivot.runWithProfile(" + angle.getDegrees() + " deg)");
     }
 
-    public Command runToWithProfile(Angle angle) {
-        return Commands.run(() -> setAngleWithProfile(angle), config.subsystem)
+    /** Runs the pivot to {@code angle} via MotionMagic and finishes once {@link #atAngle()} is true. */
+    public Command runToWithProfile(Rotation2d angle) {
+        return Commands.run(() -> setAngleWithProfile(angle), getSubsystem())
                 .until(this::atAngle)
-                .withName("Pivot.runToWithProfile(" + angle.in(Degrees) + " deg)");
+                .withName("Pivot.runToWithProfile(" + angle.getDegrees() + " deg)");
     }
 
-    public Command run(Angle angle) {
-        return Commands.run(() -> setAngle(angle), config.subsystem)
-                .withName("Pivot.run(" + angle.in(Degrees) + " deg)");
+    /**
+     * Runs the pivot to {@code angle} continuously using direct position control (no profile).
+     * The command never finishes on its own; use {@link #runTo} for a one-shot move.
+     */
+    public Command run(Rotation2d angle) {
+        return Commands.run(() -> setAngle(angle), getSubsystem())
+                .withName("Pivot.run(" + angle.getDegrees() + " deg)");
     }
 
-    public Command runTo(Angle angle) {
-        return Commands.run(() -> setAngle(angle), config.subsystem)
+    /** Runs the pivot to {@code angle} via direct position control and finishes once {@link #atAngle()} is true. */
+    public Command runTo(Rotation2d angle) {
+        return Commands.run(() -> setAngle(angle), getSubsystem())
                 .until(this::atAngle)
-                .withName("Pivot.runTo(" + angle.in(Degrees) + " deg)");
+                .withName("Pivot.runTo(" + angle.getDegrees() + " deg)");
     }
 
-    public void setAngleWithProfile(Angle angle) {
+    /** Sends a MotionMagic profiled position setpoint and updates the stored setpoint. */
+    public void setAngleWithProfile(Rotation2d angle) {
         this.setpoint = angle;
         motor.setPositionProfiled(angle);
     }
 
-    public void setAngle(Angle angle) {
+    /** Sends a direct position setpoint (no profile) and updates the stored setpoint. */
+    public void setAngle(Rotation2d angle) {
         this.setpoint = angle;
         motor.setPosition(angle);
     }
 
-    public Angle getAngle() {
+    /** Returns the current mechanism angle from the motor's feedback sensor. */
+    public Rotation2d getAngle() {
         return motor.getMechanismPosition();
     }
 
+    /** Returns {@code true} when the pivot is within tolerance of the most recent setpoint. */
     public boolean atAngle() {
-        Angle tolerance = config.positionTolerance != null ? config.positionTolerance : DEFAULT_TOLERANCE;
+        Rotation2d tolerance = pivotConfig.positionTolerance != null
+                ? pivotConfig.positionTolerance : DEFAULT_TOLERANCE;
         return atAngle(setpoint, tolerance);
     }
 
-    public boolean atAngle(Angle target, Angle tolerance) {
-        return Math.abs(getAngle().in(Degrees) - target.in(Degrees)) <= tolerance.in(Degrees);
+    /** Returns {@code true} when the pivot is within {@code tolerance} of {@code target}. */
+    public boolean atAngle(Rotation2d target, Rotation2d tolerance) {
+        return Math.abs(getAngle().getDegrees() - target.getDegrees()) <= tolerance.getDegrees();
     }
 
     // ── Characterization ──────────────────────────────────────────────────────
 
     /**
-     * Ramps open-loop voltage at the pivot's horizontal-zero position until it holds.
-     * The measured holding voltage is {@code kG}.
-     *
-     * <p>Position the pivot at its horizontal-zero angle before running.
-     * Read {@code KgEstimate} from AKit logs and use it in your feedforward constructor.
-     * Tune {@code kS} and {@code kV} via tuning mode or empirically.
-     *
-     * <p>WARNING: This command drives the mechanism with open-loop voltage.
-     * Ensure soft limits are enabled and the mechanism is clear of
-     * obstructions before running. The command will not stop automatically
-     * if the mechanism hits a hard stop -- use with caution.
-     * Recommended: run only in a controlled environment, not during competition.
+     * Ramps open-loop voltage at the pivot's {@code horizontalZero} angle until it holds
+     * position. The measured holding voltage is {@code kG}.
      */
     public Command gravityCharacterization() {
-        Angle horizontalZero = Radians.of(motor.getHorizontalZeroRad());
+        Rotation2d horizontalZero = new Rotation2d(motor.getHorizontalZeroRad());
         return Commands.sequence(
             runWithProfile(horizontalZero).until(this::atAngle).withTimeout(3.0),
             voltageRampCommand(3.0, 0.01, 0.05, 10, kg -> {
@@ -119,7 +136,7 @@ public class Pivot extends SmartMechanism {
         pivotSim.update(0.020);
 
         motor.simUpdate(
-                Rotations.of(pivotSim.getAngularPositionRotations()),
+                Rotation2d.fromRotations(pivotSim.getAngularPositionRotations()),
                 RotationsPerSecond.of(pivotSim.getAngularVelocityRPM() / 60.0));
     }
 
@@ -127,11 +144,11 @@ public class Pivot extends SmartMechanism {
     public void updateTelemetry() {
         processInputs();
 
-        Logger.recordOutput(logPrefix + "AngleDegrees", getAngle().in(Degrees));
-        Logger.recordOutput(logPrefix + "SetpointDegrees", setpoint.in(Degrees));
+        Logger.recordOutput(logPrefix + "AngleDegrees", getAngle().getDegrees());
+        Logger.recordOutput(logPrefix + "SetpointDegrees", setpoint.getDegrees());
         Logger.recordOutput(logPrefix + "AtAngle", atAngle());
 
-        Command active = config.subsystem.getCurrentCommand();
+        Command active = getSubsystem().getCurrentCommand();
         Logger.recordOutput(logPrefix + "ActiveCommand", active != null ? active.getName() : "None");
     }
 }

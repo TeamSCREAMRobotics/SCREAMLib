@@ -1,11 +1,8 @@
 package com.teamscreamrobotics.superstructure;
 
 import com.teamscreamrobotics.motorcontrol.Turret;
-import edu.wpi.first.units.Measure;
-import edu.wpi.first.units.Unit;
-import edu.wpi.first.units.measure.Angle;
 
-import static edu.wpi.first.units.Units.Degrees;
+import edu.wpi.first.math.geometry.Rotation2d;
 
 /** Adapts {@link Turret} to the superstructure graph. Setpoints are in degrees. */
 public class TurretAdapter implements MechanismAdapter {
@@ -26,12 +23,12 @@ public class TurretAdapter implements MechanismAdapter {
 
     @Override
     public void setSetpoint(double degrees) {
-        turret.setAngleWithProfile(Degrees.of(degrees));
+        turret.setAngleWithProfile(Rotation2d.fromDegrees(degrees));
     }
 
     @Override
     public double getCurrentValue() {
-        return turret.getAngle().in(Degrees);
+        return turret.getAngle().getDegrees();
     }
 
     @Override
@@ -41,17 +38,7 @@ public class TurretAdapter implements MechanismAdapter {
 
     @Override
     public boolean atSetpoint(double degrees, double toleranceDegrees) {
-        return turret.atAngle(Degrees.of(degrees), Degrees.of(toleranceDegrees));
-    }
-
-    /** Accepts {@link Angle}; returns degrees as a double. */
-    @Override
-    public <U extends Unit> double toInternalValue(Measure<U> measure) {
-        if (measure instanceof Angle angle) {
-            return angle.in(Degrees);
-        }
-        throw new IllegalArgumentException(
-                "TurretAdapter '" + name + "' expects Measure<Angle>, got: " + measure.getClass().getSimpleName());
+        return turret.atAngle(Rotation2d.fromDegrees(degrees), Rotation2d.fromDegrees(toleranceDegrees));
     }
 
     /** Default tolerance: 1 degree. */

@@ -3,10 +3,11 @@ package com.teamscreamrobotics.motorcontrol;
 import org.littletonrobotics.junction.LogTable;
 import org.littletonrobotics.junction.inputs.LoggableInputs;
 
-// Manually implemented equivalent of what @AutoLog would generate for SmartMotorControllerInputs.
-public class SmartMotorControllerInputsAutoLogged
-        extends SmartMotorController.SmartMotorControllerInputs
-        implements LoggableInputs {
+/**
+ * Manually implemented equivalent of what {@code @AutoLog} would generate for {@link TalonFXInputs}.
+ * Implements {@link LoggableInputs} so AdvantageKit can log and replay all hardware inputs.
+ */
+public class TalonFXInputsAutoLogged extends TalonFXInputs implements LoggableInputs {
 
     @Override
     public void toLog(LogTable table) {

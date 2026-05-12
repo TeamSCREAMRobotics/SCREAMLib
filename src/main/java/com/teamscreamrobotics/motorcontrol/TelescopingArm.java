@@ -1,7 +1,7 @@
 package com.teamscreamrobotics.motorcontrol;
 
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
-import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -30,11 +30,9 @@ import static edu.wpi.first.units.Units.*;
  * <h2>Gravity compensation</h2>
  * <p>When {@link TelescopingArmConfig#pivotGravityKg} is non-zero, a feedforward override
  * proportional to {@code kG * cos(angle) * (ext / maxExt)} is applied to the pivot each cycle.
- * This replaces any static {@code armFeedforward} configured on the pivot motor — do not
- * configure both.
  *
  * <h2>Assumptions</h2>
- * <p>Both the pivot and extension motors must be registered to the same {@code SubsystemBase}.
+ * <p>Both motors must be registered to the same {@code SubsystemBase}.
  */
 public class TelescopingArm {
 
@@ -48,25 +46,13 @@ public class TelescopingArm {
     public TelescopingArm(TelescopingArmConfig armConfig) {
         this.armConfig = armConfig;
         this.logPrefix = armConfig.resolveLogPrefix();
-        this.subsystem = armConfig.pivotMotor.getConfig().subsystem;
+        this.subsystem = armConfig.subsystem;
 
-        PivotConfig pivotCfg = new PivotConfig(armConfig.pivotMotor)
-                .withStartingPosition(armConfig.startingAngle)
-                .withLogPrefix(logPrefix + "Pivot/");
-        pivotCfg.moiKgMetersSquared = armConfig.pivotMoiKgMetersSquared;
-        if (armConfig.pivotMin != null && armConfig.pivotMax != null) {
-            pivotCfg.withHardLimit(armConfig.pivotMin, armConfig.pivotMax);
-        }
-        pivot = new Pivot(pivotCfg);
+        armConfig.pivotConfig.withLogPrefix(logPrefix + "Pivot/");
+        pivot = new Pivot(armConfig.pivotConfig);
 
-        ElevatorConfig elevCfg = new ElevatorConfig(armConfig.extensionMotor)
-                .withStartingHeight(armConfig.startingExtension)
-                .withHardLimits(armConfig.minExtension, armConfig.maxExtension)
-                .withLogPrefix(logPrefix + "Extension/");
-        if (armConfig.extensionMass != null) {
-            elevCfg.withMass(armConfig.extensionMass);
-        }
-        extension = new Elevator(elevCfg);
+        armConfig.elevatorConfig.withLogPrefix(logPrefix + "Extension/");
+        extension = new Elevator(armConfig.elevatorConfig);
 
         taskSpaceProfile = new TrapezoidProfile(
                 new TrapezoidProfile.Constraints(armConfig.maxTaskVelocityMps, armConfig.maxTaskAccelMps2));
@@ -76,27 +62,27 @@ public class TelescopingArm {
 
     public Pivot getPivot() { return pivot; }
     public Elevator getExtension() { return extension; }
-    public Angle getAngle() { return pivot.getAngle(); }
+    public Rotation2d getAngle() { return pivot.getAngle(); }
     public Distance getExtensionDistance() { return extension.getHeight(); }
 
     public double getEndEffectorX() {
-        return getExtensionDistance().in(Meters) * Math.cos(getAngle().in(Radians));
+        return getExtensionDistance().in(Meters) * Math.cos(getAngle().getRadians());
     }
 
     public double getEndEffectorY() {
-        return getExtensionDistance().in(Meters) * Math.sin(getAngle().in(Radians));
+        return getExtensionDistance().in(Meters) * Math.sin(getAngle().getRadians());
     }
 
     // ── Commands ───────────────────────────────────────────────────────────────
 
     /** Commands pivot and extension continuously via Motion Magic. */
-    public Command run(Angle angle, Distance ext) {
+    public Command run(Rotation2d angle, Distance ext) {
         return Commands.run(() -> setGoal(angle, ext), subsystem)
                 .withName("TelescopingArm.run");
     }
 
     /** Commands pivot and extension to goal via Motion Magic. Ends when both are at goal. */
-    public Command runTo(Angle angle, Distance ext) {
+    public Command runTo(Rotation2d angle, Distance ext) {
         return Commands.run(() -> setGoal(angle, ext), subsystem)
                 .until(() -> atGoal(angle, ext))
                 .withName("TelescopingArm.runTo");
@@ -144,14 +130,14 @@ public class TelescopingArm {
     // ── Control ───────────────────────────────────────────────────────────────
 
     /** Commands pivot and extension via Motion Magic profile with gravity compensation. */
-    public void setGoal(Angle angle, Distance ext) {
+    public void setGoal(Rotation2d angle, Distance ext) {
         applyGravityCompensation();
         pivot.setAngleWithProfile(angle);
         extension.setHeightWithProfile(ext);
     }
 
     /** Commands pivot and extension via direct PID with gravity compensation. */
-    public void setGoalDirect(Angle angle, Distance ext) {
+    public void setGoalDirect(Rotation2d angle, Distance ext) {
         applyGravityCompensation();
         pivot.setAngle(angle);
         extension.setHeight(ext);
@@ -159,20 +145,23 @@ public class TelescopingArm {
 
     /**
      * IK: converts (x, y) to polar coordinates and commands pivot and extension
-     * directly via PID. Extension is clamped to configured limits.
+     * directly via PID. Extension is clamped to configured hard limits.
      */
     public void setEndEffectorDirect(double xMeters, double yMeters) {
-        Angle angle = Radians.of(Math.atan2(yMeters, xMeters));
-        double clampedExt = Math.max(armConfig.minExtension.in(Meters),
-                Math.min(armConfig.maxExtension.in(Meters),
-                        Math.sqrt(xMeters * xMeters + yMeters * yMeters)));
+        Rotation2d angle = new Rotation2d(Math.atan2(yMeters, xMeters));
+        Distance hardMin = armConfig.elevatorConfig.hardLimitMin;
+        Distance hardMax = armConfig.elevatorConfig.hardLimitMax;
+        double minExt = hardMin != null ? hardMin.in(Meters) : 0.0;
+        double maxExt = hardMax != null ? hardMax.in(Meters) : Double.MAX_VALUE;
+        double clampedExt = Math.max(minExt, Math.min(maxExt,
+                Math.sqrt(xMeters * xMeters + yMeters * yMeters)));
         applyGravityCompensation();
         pivot.setAngle(angle);
         extension.setHeight(Meters.of(clampedExt));
     }
 
-    public boolean atGoal(Angle angle, Distance ext) {
-        return pivot.atAngle(angle, Degrees.of(1.0)) && extension.atHeight(ext, Meters.of(0.01));
+    public boolean atGoal(Rotation2d angle, Distance ext) {
+        return pivot.atAngle(angle, Rotation2d.fromDegrees(1.0)) && extension.atHeight(ext, Meters.of(0.01));
     }
 
     public boolean atEndEffector(Distance x, Distance y) {
@@ -185,40 +174,20 @@ public class TelescopingArm {
 
     /**
      * Extends fully, then ramps pivot voltage up from 0 at horizontal to measure kG.
-     *
-     * <p>Extension must be at maximum before kG is meaningful — the full-extension
-     * holding voltage is the {@link TelescopingArmConfig#pivotGravityKg} value that
-     * scales gravity compensation at runtime.
-     *
-     * <p>Read {@code <logPrefix>Pivot/GravityChar/KgEstimate} from AKit logs and
-     * plug it into {@link TelescopingArmConfig#withPivotGravity}.
-     *
-     * <p>WARNING: open-loop voltage. Ensure soft limits are configured and the
-     * mechanism is clear of obstructions before running.
      */
     public Command gravityCharacterization() {
+        Distance hardMax = armConfig.elevatorConfig.hardLimitMax;
+        Distance maxExtension = hardMax != null ? hardMax : Meters.of(1.0);
         return Commands.sequence(
-                extension.runToWithProfile(armConfig.maxExtension),
+                extension.runToWithProfile(maxExtension),
                 pivot.gravityCharacterization()
         ).withName("TelescopingArm GravityCharacterization");
     }
 
-    /**
-     * Continuously applies dashboard gain updates and commands the pivot to the
-     * supplied setpoint (in rotations).
-     *
-     * @see SmartMechanism#tuningMode
-     */
     public Command pivotTuningMode(MechanismTuner tuner, DoubleSupplier setpointRotations) {
         return pivot.tuningMode(tuner, setpointRotations);
     }
 
-    /**
-     * Continuously applies dashboard gain updates and commands the extension to the
-     * supplied setpoint (in motor rotations — divide target meters by drum circumference).
-     *
-     * @see SmartMechanism#tuningMode
-     */
     public Command extensionTuningMode(MechanismTuner tuner, DoubleSupplier setpointRotations) {
         return extension.tuningMode(tuner, setpointRotations);
     }
@@ -236,7 +205,7 @@ public class TelescopingArm {
 
         Logger.recordOutput(logPrefix + "EndEffectorXMeters", getEndEffectorX());
         Logger.recordOutput(logPrefix + "EndEffectorYMeters", getEndEffectorY());
-        Logger.recordOutput(logPrefix + "AngleDegrees", getAngle().in(Degrees));
+        Logger.recordOutput(logPrefix + "AngleDegrees", getAngle().getDegrees());
         Logger.recordOutput(logPrefix + "ExtensionMeters", getExtensionDistance().in(Meters));
     }
 
@@ -244,9 +213,11 @@ public class TelescopingArm {
 
     private void applyGravityCompensation() {
         if (armConfig.pivotGravityKg == 0.0) return;
-        double angleRad = getAngle().in(Radians);
+        Distance hardMax = armConfig.elevatorConfig.hardLimitMax;
+        if (hardMax == null) return;
+        double angleRad = getAngle().getRadians();
         double extMeters = getExtensionDistance().in(Meters);
-        double maxExt = armConfig.maxExtension.in(Meters);
+        double maxExt = hardMax.in(Meters);
         double scale = maxExt > 0 ? extMeters / maxExt : 0.0;
         pivot.getMotor().setFeedforwardOverride(armConfig.pivotGravityKg * Math.cos(angleRad) * scale);
     }

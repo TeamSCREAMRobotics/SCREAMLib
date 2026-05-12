@@ -4,8 +4,8 @@ import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.MagnetSensorConfigs;
 import com.ctre.phoenix6.hardware.CANcoder;
 
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.system.plant.LinearSystemId;
-import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.Timer;
@@ -19,9 +19,21 @@ import java.util.function.Supplier;
 
 import static edu.wpi.first.units.Units.*;
 
+/**
+ * Turret mechanism driven by a TalonFX with optional CRT absolute positioning and
+ * drivetrain-lag compensation.
+ *
+ * <p>Supports two encoder modes:
+ * <ul>
+ *   <li><b>Single encoder</b> — motor encoder only; position seeded to {@code startingPosition}
+ *       on construction.</li>
+ *   <li><b>CRT mode</b> — two CANcoders compute an absolute position at startup via the
+ *       Chinese Remainder Theorem; ongoing drift is logged and warned.</li>
+ * </ul>
+ */
 public class Turret extends SmartMechanism {
 
-    private static final Angle DEFAULT_TOLERANCE = Degrees.of(1.0);
+    private static final Rotation2d DEFAULT_TOLERANCE = Rotation2d.fromDegrees(1.0);
 
     private final TurretConfig turretConfig;
     private final DCMotorSim turretSim;
@@ -30,12 +42,14 @@ public class Turret extends SmartMechanism {
     private final CANcoder primaryCRTEncoder;
     private final CANcoder secondaryCRTEncoder;
 
-    private Angle setpoint;
+    private Rotation2d setpoint;
     private double lagCorrectionDeg = 0.0;
     private double lastDriftWarningTime = -10.0;
 
+    /** Constructs the turret, applies motor config, and seeds the encoder (or reads CRT position). */
     public Turret(TurretConfig turretConfig) {
         super(turretConfig.motor, turretConfig.resolveLogPrefix());
+        turretConfig.applyBuilt();
         this.turretConfig = turretConfig;
         this.setpoint = turretConfig.startingPosition;
 
@@ -69,7 +83,7 @@ public class Turret extends SmartMechanism {
             double phi_B = normalizeEncoderReading(
                     secondaryCRTEncoder.getAbsolutePosition().refresh().getValueAsDouble());
 
-            Angle absolutePosition = computeCRTPosition(
+            Rotation2d absolutePosition = computeCRTPosition(
                     phi_A, crt.primaryTurnsPerMechanismTurn(),
                     phi_B, crt.secondaryTurnsPerMechanismTurn());
             motor.resetEncoder(absolutePosition);
@@ -80,13 +94,13 @@ public class Turret extends SmartMechanism {
             motor.resetEncoder(turretConfig.startingPosition);
         }
 
-        if (RobotBase.isSimulation() && config.motorModel != null) {
+        if (RobotBase.isSimulation() && turretConfig.motorModel != null) {
             turretSim = new DCMotorSim(
                     LinearSystemId.createDCMotorSystem(
-                            config.motorModel,
+                            turretConfig.motorModel,
                             turretConfig.moiKgMetersSquared,
-                            config.gearing),
-                    config.motorModel);
+                            motor.getRuntimeInfo().gearing()),
+                    turretConfig.motorModel);
         } else {
             turretSim = null;
         }
@@ -94,95 +108,96 @@ public class Turret extends SmartMechanism {
 
     // ── Commands ──────────────────────────────────────────────────────────────
 
-    public Command runWithProfile(Angle angle) {
-        return Commands.run(() -> setAngleWithProfile(angle), config.subsystem)
-                .withName("Turret.runWithProfile(" + angle.in(Degrees) + " deg)");
+    /**
+     * Runs the turret to {@code angle} continuously using MotionMagic profiled position control.
+     * The command never finishes on its own; use {@link #runToWithProfile} for a one-shot move.
+     */
+    public Command runWithProfile(Rotation2d angle) {
+        return Commands.run(() -> setAngleWithProfile(angle), getSubsystem())
+                .withName("Turret.runWithProfile(" + angle.getDegrees() + " deg)");
     }
 
-    public Command runToWithProfile(Angle angle) {
-        return Commands.run(() -> setAngleWithProfile(angle), config.subsystem)
+    /** Runs the turret to {@code angle} via MotionMagic and finishes once {@link #atAngle()} is true. */
+    public Command runToWithProfile(Rotation2d angle) {
+        return Commands.run(() -> setAngleWithProfile(angle), getSubsystem())
                 .until(this::atAngle)
-                .withName("Turret.runToWithProfile(" + angle.in(Degrees) + " deg)");
+                .withName("Turret.runToWithProfile(" + angle.getDegrees() + " deg)");
     }
 
-    public Command run(Angle angle) {
-        return Commands.run(() -> setAngle(angle), config.subsystem)
-                .withName("Turret.run(" + angle.in(Degrees) + " deg)");
+    /**
+     * Runs the turret to {@code angle} continuously using direct position control (no profile).
+     * The command never finishes on its own; use {@link #runTo} for a one-shot move.
+     */
+    public Command run(Rotation2d angle) {
+        return Commands.run(() -> setAngle(angle), getSubsystem())
+                .withName("Turret.run(" + angle.getDegrees() + " deg)");
     }
 
-    public Command runTo(Angle angle) {
-        return Commands.run(() -> setAngle(angle), config.subsystem)
+    /** Runs the turret to {@code angle} via direct position control and finishes once {@link #atAngle()} is true. */
+    public Command runTo(Rotation2d angle) {
+        return Commands.run(() -> setAngle(angle), getSubsystem())
                 .until(this::atAngle)
-                .withName("Turret.runTo(" + angle.in(Degrees) + " deg)");
+                .withName("Turret.runTo(" + angle.getDegrees() + " deg)");
     }
 
     /**
      * Continuously tracks a dynamic target angle, automatically wrapping around hard limits
-     * to stay on target. When the target angle is outside {@code [hardLimitMin, hardLimitMax]},
-     * the nearest equivalent in-range angle is commanded instead.
-     *
-     * <p>Lag compensation is applied to each update if configured.
-     *
-     * <p>Requires {@code hardLimitMin} and {@code hardLimitMax} to be set in config.
-     * If limits are not configured, behaves identically to {@code run(Supplier<Angle>)}.
+     * to stay on target.
      */
-    public Command track(Supplier<Angle> targetSupplier) {
-        return Commands.run(() -> setAngle(normalizeAngle(targetSupplier.get())), config.subsystem)
+    public Command track(Supplier<Rotation2d> targetSupplier) {
+        return Commands.run(() -> setAngle(normalizeAngle(targetSupplier.get())), getSubsystem())
                 .withName("Turret.track(dynamic)");
     }
 
     // ── Control ───────────────────────────────────────────────────────────────
 
-    /**
-     * Commands the turret to the given angle via Motion Magic with optional lag compensation.
-     * The stored setpoint (used for {@link #atAngle()}) is always the uncompensated target.
-     */
-    public void setAngleWithProfile(Angle angle) {
+    /** Sends a MotionMagic profiled position setpoint, applying lag compensation if configured. */
+    public void setAngleWithProfile(Rotation2d angle) {
         this.setpoint = angle;
-        Angle target = angle;
+        Rotation2d target = angle;
 
         if (turretConfig.drivetrainAngularVelocitySupplier != null) {
             double omegaRadPerSec = turretConfig.drivetrainAngularVelocitySupplier.get()
                     .in(RadiansPerSecond);
             double lagCorrectionRad = -omegaRadPerSec * turretConfig.lagCompensationSeconds;
-            target = Radians.of(target.in(Radians) + lagCorrectionRad);
+            target = new Rotation2d(target.getRadians() + lagCorrectionRad);
             lagCorrectionDeg = Math.toDegrees(lagCorrectionRad);
         }
 
         motor.setPositionProfiled(target);
     }
 
-    /**
-     * Commands the turret directly to {@code angle} via PID, bypassing Motion Magic.
-     * Prefer this over {@link #setAngle} for high-rate dynamic tracking where profiling
-     * would add unnecessary lag. Lag compensation is still applied when configured.
-     */
-    public void setAngle(Angle angle) {
+    /** Sends a direct position setpoint (no profile), applying lag compensation if configured. */
+    public void setAngle(Rotation2d angle) {
         this.setpoint = angle;
-        Angle target = angle;
+        Rotation2d target = angle;
 
         if (turretConfig.drivetrainAngularVelocitySupplier != null) {
             double omegaRadPerSec = turretConfig.drivetrainAngularVelocitySupplier.get()
                     .in(RadiansPerSecond);
             double lagCorrectionRad = -omegaRadPerSec * turretConfig.lagCompensationSeconds;
-            target = Radians.of(target.in(Radians) + lagCorrectionRad);
+            target = new Rotation2d(target.getRadians() + lagCorrectionRad);
             lagCorrectionDeg = Math.toDegrees(lagCorrectionRad);
         }
 
         motor.setPosition(target);
     }
 
-    public Angle getAngle() {
+    /** Returns the current mechanism angle from the motor's feedback sensor. */
+    public Rotation2d getAngle() {
         return motor.getMechanismPosition();
     }
 
+    /** Returns {@code true} when the turret is within tolerance of the most recent setpoint. */
     public boolean atAngle() {
-        Angle tolerance = config.positionTolerance != null ? config.positionTolerance : DEFAULT_TOLERANCE;
+        Rotation2d tolerance = turretConfig.positionTolerance != null
+                ? turretConfig.positionTolerance : DEFAULT_TOLERANCE;
         return atAngle(setpoint, tolerance);
     }
 
-    public boolean atAngle(Angle target, Angle tolerance) {
-        return Math.abs(getAngle().in(Degrees) - target.in(Degrees)) <= tolerance.in(Degrees);
+    /** Returns {@code true} when the turret is within {@code tolerance} of {@code target}. */
+    public boolean atAngle(Rotation2d target, Rotation2d tolerance) {
+        return Math.abs(getAngle().getDegrees() - target.getDegrees()) <= tolerance.getDegrees();
     }
 
     // ── Simulation ────────────────────────────────────────────────────────────
@@ -196,7 +211,7 @@ public class Turret extends SmartMechanism {
         turretSim.update(0.020);
 
         motor.simUpdate(
-                Rotations.of(turretSim.getAngularPositionRotations()),
+                Rotation2d.fromRotations(turretSim.getAngularPositionRotations()),
                 RotationsPerSecond.of(turretSim.getAngularVelocityRPM() / 60.0));
     }
 
@@ -206,8 +221,8 @@ public class Turret extends SmartMechanism {
     public void updateTelemetry() {
         processInputs();
 
-        Logger.recordOutput(logPrefix + "AngleDegrees", getAngle().in(Degrees));
-        Logger.recordOutput(logPrefix + "SetpointDegrees", setpoint.in(Degrees));
+        Logger.recordOutput(logPrefix + "AngleDegrees", getAngle().getDegrees());
+        Logger.recordOutput(logPrefix + "SetpointDegrees", setpoint.getDegrees());
         Logger.recordOutput(logPrefix + "AtAngle", atAngle());
         Logger.recordOutput(logPrefix + "LagCorrectionDegrees", lagCorrectionDeg);
         Logger.recordOutput(logPrefix + "AbsolutePositionMode",
@@ -217,24 +232,20 @@ public class Turret extends SmartMechanism {
             logCRTDrift();
         }
 
-        Command active = config.subsystem.getCurrentCommand();
+        Command active = getSubsystem().getCurrentCommand();
         Logger.recordOutput(logPrefix + "ActiveCommand", active != null ? active.getName() : "None");
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    /**
-     * Normalizes {@code target} to {@code [hardLimitMin, hardLimitMax)} by wrapping.
-     * If no hard limits are configured, returns the target unchanged.
-     */
-    private Angle normalizeAngle(Angle target) {
+    private Rotation2d normalizeAngle(Rotation2d target) {
         if (turretConfig.hardLimitMin == null || turretConfig.hardLimitMax == null) return target;
-        double minDeg = turretConfig.hardLimitMin.in(Degrees);
-        double maxDeg = turretConfig.hardLimitMax.in(Degrees);
+        double minDeg = turretConfig.hardLimitMin.getDegrees();
+        double maxDeg = turretConfig.hardLimitMax.getDegrees();
         double rangeDeg = maxDeg - minDeg;
-        double t = target.in(Degrees);
+        double t = target.getDegrees();
         t = ((t - minDeg) % rangeDeg + rangeDeg) % rangeDeg + minDeg;
-        return Degrees.of(t);
+        return Rotation2d.fromDegrees(t);
     }
 
     private void logCRTDrift() {
@@ -244,55 +255,36 @@ public class Turret extends SmartMechanism {
         double phi_B = normalizeEncoderReading(
                 secondaryCRTEncoder.getAbsolutePosition().getValueAsDouble());
 
-        Angle livePosition = computeCRTPosition(
+        Rotation2d livePosition = computeCRTPosition(
                 phi_A, crt.primaryTurnsPerMechanismTurn(),
                 phi_B, crt.secondaryTurnsPerMechanismTurn());
 
-        double driftDeg = Math.abs(livePosition.in(Degrees) - getAngle().in(Degrees));
+        double driftDeg = Math.abs(livePosition.getDegrees() - getAngle().getDegrees());
 
-        Logger.recordOutput(logPrefix + "CRT/LiveAbsolutePositionDegrees", livePosition.in(Degrees));
+        Logger.recordOutput(logPrefix + "CRT/LiveAbsolutePositionDegrees", livePosition.getDegrees());
         Logger.recordOutput(logPrefix + "CRT/DriftDegrees", driftDeg);
 
-        if (driftDeg > crt.driftWarningThreshold().in(Degrees)
+        if (driftDeg > crt.driftWarningThreshold().getDegrees()
                 && Timer.getFPGATimestamp() - lastDriftWarningTime >= 10.0) {
             DriverStation.reportWarning(
                     String.format("Turret CRT position drift: %.1f deg (threshold %.1f deg)",
-                            driftDeg, crt.driftWarningThreshold().in(Degrees)),
+                            driftDeg, crt.driftWarningThreshold().getDegrees()),
                     false);
             lastDriftWarningTime = Timer.getFPGATimestamp();
         }
     }
 
-    /**
-     * Converts a raw Phoenix 6 absolute-position reading from [-0.5, 0.5) to [0, 1).
-     */
     private static double normalizeEncoderReading(double rawRotations) {
         return rawRotations < 0 ? rawRotations + 1.0 : rawRotations;
     }
 
-    /**
-     * Computes the mechanism's absolute position from two encoder readings using the
-     * Chinese Remainder Theorem.
-     *
-     * <p>Algorithm:
-     * <ol>
-     *   <li>Convert each encoder reading to mechanism rotations: {@code theta = phi / turnsPerMechTurn}
-     *   <li>Find how many full primary-range cycles separate the coarse and fine estimates
-     *   <li>Return the fine estimate offset by that many cycles
-     * </ol>
-     *
-     * @param phi_A                        primary encoder reading [0, 1) in encoder rotations
-     * @param primaryTurnsPerMechanismTurn encoder turns per mechanism turn (fine encoder)
-     * @param phi_B                        secondary encoder reading [0, 1)
-     * @param secondaryTurnsPerMechanismTurn encoder turns per mechanism turn (coarse encoder)
-     */
-    private static Angle computeCRTPosition(
+    private static Rotation2d computeCRTPosition(
             double phi_A, double primaryTurnsPerMechanismTurn,
             double phi_B, double secondaryTurnsPerMechanismTurn) {
         double thetaFine   = phi_A / primaryTurnsPerMechanismTurn;
         double thetaCoarse = phi_B / secondaryTurnsPerMechanismTurn;
         double primaryRange = 1.0 / primaryTurnsPerMechanismTurn;
         double k = Math.round((thetaCoarse - thetaFine) / primaryRange);
-        return Rotations.of(thetaFine + k * primaryRange);
+        return Rotation2d.fromRotations(thetaFine + k * primaryRange);
     }
 }

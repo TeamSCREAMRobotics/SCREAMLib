@@ -1,6 +1,6 @@
 package com.teamscreamrobotics.superstructure;
 
-import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.units.measure.Distance;
 
 import java.util.Collections;
@@ -16,8 +16,8 @@ import java.util.Map;
  * <pre>
  *   SuperstructurePosition.builder()
  *       .set(elevatorAdapter, Meters.of(0.8))
- *       .set(armAdapter,      Degrees.of(85.0))
- *       .set(wristAdapter,    Degrees.of(45.0))
+ *       .set(armAdapter,      Rotation2d.fromDegrees(85.0))
+ *       .set(wristAdapter,    Rotation2d.fromDegrees(45.0))
  *       .build()
  * </pre>
  *
@@ -47,9 +47,9 @@ public record SuperstructurePosition(Map<MechanismAdapter, Double> mechanismSetp
 
         private Builder() {}
 
-        /** Sets an arm setpoint. Value must be an {@link Angle} (e.g. {@code Degrees.of(-10)}). */
-        public Builder set(ArmAdapter adapter, Angle setpoint) {
-            setpoints.put(adapter, adapter.toInternalValue(setpoint));
+        /** Sets an arm setpoint in degrees. */
+        public Builder set(ArmAdapter adapter, Rotation2d setpoint) {
+            setpoints.put(adapter, setpoint.getDegrees());
             return this;
         }
 
@@ -59,15 +59,15 @@ public record SuperstructurePosition(Map<MechanismAdapter, Double> mechanismSetp
             return this;
         }
 
-        /** Sets a pivot setpoint. Value must be an {@link Angle} (e.g. {@code Degrees.of(90)}). */
-        public Builder set(PivotAdapter adapter, Angle setpoint) {
-            setpoints.put(adapter, adapter.toInternalValue(setpoint));
+        /** Sets a pivot setpoint in degrees. */
+        public Builder set(PivotAdapter adapter, Rotation2d setpoint) {
+            setpoints.put(adapter, setpoint.getDegrees());
             return this;
         }
 
-        /** Sets a turret setpoint. Value must be an {@link Angle} (e.g. {@code Degrees.of(90)}). */
-        public Builder set(TurretAdapter adapter, Angle setpoint) {
-            setpoints.put(adapter, adapter.toInternalValue(setpoint));
+        /** Sets a turret setpoint in degrees. */
+        public Builder set(TurretAdapter adapter, Rotation2d setpoint) {
+            setpoints.put(adapter, setpoint.getDegrees());
             return this;
         }
 

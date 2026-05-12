@@ -14,7 +14,7 @@ import static edu.wpi.first.units.Units.Meters;
  *   TelescopingArmAdapter adapter = new TelescopingArmAdapter(telescopingArm, "Arm");
  *
  *   // Angle + extension directly:
- *   .set(adapter.getPivotAdapter(), Degrees.of(45))
+ *   .set(adapter.getPivotAdapter(), Rotation2d.fromDegrees(45))
  *   .set(adapter.getExtensionAdapter(), Meters.of(0.5))
  *
  *   // Or via the IK helper:

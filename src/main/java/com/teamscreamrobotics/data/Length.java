@@ -1,10 +1,16 @@
 package com.teamscreamrobotics.data;
 
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.util.struct.Struct;
 import edu.wpi.first.util.struct.StructSerializable;
 import java.nio.ByteBuffer;
 
-/** An immutable, unit-safe linear distance value. Stored internally in inches. */
+import static edu.wpi.first.units.Units.Inches;
+import static edu.wpi.first.units.Units.Meters;
+
+/**
+ * An immutable, unit-safe linear distance value. Stored internally in inches.
+ */
 public class Length implements StructSerializable {
 
   /** A zero-length constant. */
@@ -46,8 +52,14 @@ public class Length implements StructSerializable {
     return from(meters, 39.37);
   }
 
+  /** Creates a {@link Length} from a WPILib {@link Distance}. */
+  public static Length from(Distance distance) {
+    return new Length(distance.in(Inches));
+  }
+
   /**
-   * Converts a rotational distance to a linear distance given a wheel/spool circumference.
+   * Converts a rotational distance to a linear distance given a wheel/spool
+   * circumference.
    *
    * @param rotations     number of full rotations
    * @param circumference the circumference per rotation
@@ -57,10 +69,12 @@ public class Length implements StructSerializable {
   }
 
   /**
-   * Creates a {@link Length} from an arbitrary unit by supplying the inches-per-unit factor.
+   * Creates a {@link Length} from an arbitrary unit by supplying the
+   * inches-per-unit factor.
    *
-   * @param value               the measurement in the source unit
-   * @param inchConversionFactor inches per source unit (e.g. {@code 39.37} for meters)
+   * @param value                the measurement in the source unit
+   * @param inchConversionFactor inches per source unit (e.g. {@code 39.37} for
+   *                             meters)
    */
   public static Length from(double value, double inchConversionFactor) {
     return new Length(value * inchConversionFactor);
@@ -86,18 +100,24 @@ public class Length implements StructSerializable {
     return new Length(this.inches / scalar);
   }
 
-  /** Returns a new {@link Length} whose inch value is the product of the two inch values. */
+  /**
+   * Returns a new {@link Length} whose inch value is the product of the two inch
+   * values.
+   */
   public Length times(Length scalar) {
     return new Length(this.inches * scalar.inches);
   }
 
-  /** Returns a new {@link Length} whose inch value is {@code this.inches / scalar.inches}. */
+  /**
+   * Returns a new {@link Length} whose inch value is
+   * {@code this.inches / scalar.inches}.
+   */
   public Length div(Length scalar) {
     return new Length(this.inches / scalar.inches);
   }
 
   /** Returns a new {@link Length} whose inch value is {@code inches²}. */
-  public Length squared(){
+  public Length squared() {
     return new Length(this.inches * this.inches);
   }
 
@@ -123,7 +143,7 @@ public class Length implements StructSerializable {
 
   @Override
   public boolean equals(Object obj) {
-      return this.inches == ((Length)obj).inches;
+    return this.inches == ((Length) obj).inches;
   }
 
   public static final LengthStruct struct = new LengthStruct();

@@ -4,7 +4,7 @@ import org.littletonrobotics.junction.Logger;
 
 import com.teamscreamrobotics.dashboard.LoggedTunableNumber;
 
-import static edu.wpi.first.units.Units.Rotations;
+import edu.wpi.first.math.geometry.Rotation2d;
 
 /**
  * Owns a set of {@link LoggedTunableNumber}s for one mechanism and pushes gain
@@ -31,7 +31,7 @@ public class MechanismTuner {
 
     private final String mechanismName;
     private final TuningConfig tuningConfig;
-    private final SmartMotorController motor;
+    private final TalonFXWrapper motor;
 
     public final LoggedTunableNumber kP;
     public final LoggedTunableNumber kI;
@@ -39,39 +39,33 @@ public class MechanismTuner {
     public final LoggedTunableNumber maxVelocity;
     public final LoggedTunableNumber maxAcceleration;
 
-    public MechanismTuner(String mechanismName, TuningConfig initialConfig, SmartMotorController motor) {
+    public MechanismTuner(String mechanismName, TuningConfig initialConfig, TalonFXWrapper motor) {
         this.mechanismName = mechanismName;
         this.tuningConfig = initialConfig;
         this.motor = motor;
 
         String base = "Tuning/" + mechanismName + "/";
-        kP            = new LoggedTunableNumber(base + "kP",            initialConfig.kP);
-        kI            = new LoggedTunableNumber(base + "kI",            initialConfig.kI);
-        kD            = new LoggedTunableNumber(base + "kD",            initialConfig.kD);
+        kP             = new LoggedTunableNumber(base + "kP",             initialConfig.kP);
+        kI             = new LoggedTunableNumber(base + "kI",             initialConfig.kI);
+        kD             = new LoggedTunableNumber(base + "kD",             initialConfig.kD);
         maxVelocity    = new LoggedTunableNumber(base + "MaxVelocity",    initialConfig.maxVelocity);
         maxAcceleration = new LoggedTunableNumber(base + "MaxAcceleration", initialConfig.maxAcceleration);
     }
 
     /**
-     * Call from periodic(). Checks all five tunable numbers; if any changed, rebuilds
-     * Slot0 and (optionally) MotionMagic configs and calls {@code motor.reconfigure()}.
-     * Always logs current values to AKit.
+     * Call from periodic(). Checks all five tunable numbers; if any changed, pushes
+     * updated gains to the motor controller. Always logs current values to AKit.
      */
     public void update() {
-        // Use | (not ||) so every hasChanged() runs and updates its cached value
+        // Use | (not ||) so every hasChanged() runs and updates its cached value.
         boolean changed = kP.hasChanged() | kI.hasChanged() | kD.hasChanged()
                         | maxVelocity.hasChanged() | maxAcceleration.hasChanged();
 
         if (changed) {
-            SmartMotorControllerConfig cfg = motor.getConfig();
-            cfg.slot0.kP = kP.get();
-            cfg.slot0.kI = kI.get();
-            cfg.slot0.kD = kD.get();
+            motor.setClosedLoopGains(kP.get(), kI.get(), kD.get());
             if (tuningConfig.enableMotionMagic) {
-                cfg.motionMagic.MotionMagicCruiseVelocity = maxVelocity.get();
-                cfg.motionMagic.MotionMagicAcceleration    = maxAcceleration.get();
+                motor.setMotionMagicConstraints(maxVelocity.get(), maxAcceleration.get());
             }
-            motor.reconfigure();
         }
 
         String base = "Tuning/" + mechanismName + "/";
@@ -85,16 +79,14 @@ public class MechanismTuner {
 
     /**
      * Sends {@code rotations} as a position setpoint to the motor for testing current gains.
-     * The motor controller uses its configured control mode (MotionMagic when gains include
-     * cruise velocity; plain position control when Motion Magic params are zero).
      *
      * @param rotations target position in rotations (TalonFX native units)
      */
     public void setGoalForTuning(double rotations) {
         if (tuningConfig.enableMotionMagic) {
-            motor.setPositionProfiled(Rotations.of(rotations));
+            motor.setPositionProfiled(Rotation2d.fromRotations(rotations));
         } else {
-            motor.setPosition(Rotations.of(rotations));
+            motor.setPosition(Rotation2d.fromRotations(rotations));
         }
     }
 

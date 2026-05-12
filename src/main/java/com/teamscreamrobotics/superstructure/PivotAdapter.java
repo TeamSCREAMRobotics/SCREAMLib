@@ -2,11 +2,7 @@ package com.teamscreamrobotics.superstructure;
 
 import com.teamscreamrobotics.motorcontrol.Pivot;
 
-import edu.wpi.first.units.Measure;
-import edu.wpi.first.units.Unit;
-import edu.wpi.first.units.measure.Angle;
-
-import static edu.wpi.first.units.Units.Degrees;
+import edu.wpi.first.math.geometry.Rotation2d;
 
 /** Adapts {@link Pivot} to the superstructure graph. Setpoints are in degrees. */
 public class PivotAdapter implements MechanismAdapter {
@@ -27,12 +23,12 @@ public class PivotAdapter implements MechanismAdapter {
 
     @Override
     public void setSetpoint(double degrees) {
-        pivot.setAngleWithProfile(Degrees.of(degrees));
+        pivot.setAngleWithProfile(Rotation2d.fromDegrees(degrees));
     }
 
     @Override
     public double getCurrentValue() {
-        return pivot.getAngle().in(Degrees);
+        return pivot.getAngle().getDegrees();
     }
 
     @Override
@@ -42,17 +38,7 @@ public class PivotAdapter implements MechanismAdapter {
 
     @Override
     public boolean atSetpoint(double degrees, double toleranceDegrees) {
-        return pivot.atAngle(Degrees.of(degrees), Degrees.of(toleranceDegrees));
-    }
-
-    /** Accepts {@link Angle}; returns degrees as a double. */
-    @Override
-    public <U extends Unit> double toInternalValue(Measure<U> measure) {
-        if (measure instanceof Angle angle) {
-            return angle.in(Degrees);
-        }
-        throw new IllegalArgumentException(
-                "PivotAdapter '" + name + "' expects Measure<Angle>, got: " + measure.getClass().getSimpleName());
+        return pivot.atAngle(Rotation2d.fromDegrees(degrees), Rotation2d.fromDegrees(toleranceDegrees));
     }
 
     /** Default tolerance: 1 degree. */

@@ -1,5 +1,6 @@
 package com.teamscreamrobotics.motorcontrol;
 
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -7,88 +8,113 @@ import edu.wpi.first.wpilibj2.command.Commands;
 
 import org.littletonrobotics.junction.Logger;
 
-import edu.wpi.first.units.measure.Angle;
-
 import static edu.wpi.first.units.Units.*;
 
+/**
+ * Single-joint arm mechanism driven by a TalonFX.
+ *
+ * <p>Supports position control with or without a MotionMagic profile, gravity
+ * characterization, and WPILib simulation via {@link SingleJointedArmSim}.
+ */
 public class Arm extends SmartMechanism {
 
-    private static final Angle DEFAULT_TOLERANCE = Degrees.of(1.0);
+    private static final Rotation2d DEFAULT_TOLERANCE = Rotation2d.fromDegrees(1.0);
 
+    private final ArmConfig armConfig;
     private final SingleJointedArmSim armSim;
 
-    private Angle setpoint;
+    private Rotation2d setpoint;
 
+    /** Constructs the arm, applies motor config, and seeds the encoder to the starting position. */
     public Arm(ArmConfig armConfig) {
         super(armConfig.motor, armConfig.resolveLogPrefix());
+        armConfig.applyBuilt();
+        this.armConfig = armConfig;
         this.setpoint = armConfig.startingPosition;
 
-        motor.setHorizontalZeroRad(armConfig.horizontalZero.in(Radians));
+        motor.setHorizontalZeroRad(armConfig.horizontalZero.getRadians());
         motor.resetEncoder(armConfig.startingPosition);
 
-        if (RobotBase.isSimulation() && armConfig.length != null && armConfig.mass != null
+        if (RobotBase.isSimulation()
+                && armConfig.length != null && armConfig.mass != null
                 && armConfig.hardLimitMin != null && armConfig.hardLimitMax != null
-                && config.motorModel != null) {
+                && armConfig.motorModel != null) {
             double lengthMeters = armConfig.length.in(Meters);
             double massKg = armConfig.mass.in(Kilograms);
             double j = (1.0 / 3.0) * massKg * lengthMeters * lengthMeters;
             armSim = new SingleJointedArmSim(
-                    config.motorModel,
-                    config.gearing,
+                    armConfig.motorModel,
+                    motor.getRuntimeInfo().gearing(),
                     j,
                     lengthMeters,
-                    armConfig.hardLimitMin.in(Radians),
-                    armConfig.hardLimitMax.in(Radians),
+                    armConfig.hardLimitMin.getRadians(),
+                    armConfig.hardLimitMax.getRadians(),
                     true,
-                    armConfig.startingPosition.in(Radians));
+                    armConfig.startingPosition.getRadians());
         } else {
             armSim = null;
         }
     }
 
-    public Command runWithProfile(Angle angle) {
-        return Commands.run(() -> setAngleWithProfile(angle), config.subsystem)
-                .withName("Arm.runWithProfile(" + angle.in(Degrees) + " deg)");
+    /**
+     * Runs the arm to {@code angle} continuously using MotionMagic profiled position control.
+     * The command never finishes on its own; use {@link #runToWithProfile} for a one-shot move.
+     */
+    public Command runWithProfile(Rotation2d angle) {
+        return Commands.run(() -> setAngleWithProfile(angle), getSubsystem())
+                .withName("Arm.runWithProfile(" + angle.getDegrees() + " deg)");
     }
 
-    public Command runToWithProfile(Angle angle) {
-        return Commands.run(() -> setAngleWithProfile(angle), config.subsystem)
+    /** Runs the arm to {@code angle} via MotionMagic and finishes once {@link #atAngle()} is true. */
+    public Command runToWithProfile(Rotation2d angle) {
+        return Commands.run(() -> setAngleWithProfile(angle), getSubsystem())
                 .until(this::atAngle)
-                .withName("Arm.runToWithProfile(" + angle.in(Degrees) + " deg)");
+                .withName("Arm.runToWithProfile(" + angle.getDegrees() + " deg)");
     }
 
-    public Command run(Angle angle) {
-        return Commands.run(() -> setAngle(angle), config.subsystem)
-                .withName("Arm.run(" + angle.in(Degrees) + " deg)");
+    /**
+     * Runs the arm to {@code angle} continuously using direct position control (no profile).
+     * The command never finishes on its own; use {@link #runTo} for a one-shot move.
+     */
+    public Command run(Rotation2d angle) {
+        return Commands.run(() -> setAngle(angle), getSubsystem())
+                .withName("Arm.run(" + angle.getDegrees() + " deg)");
     }
 
-    public Command runTo(Angle angle) {
-        return Commands.run(() -> setAngle(angle), config.subsystem)
+    /** Runs the arm to {@code angle} via direct position control and finishes once {@link #atAngle()} is true. */
+    public Command runTo(Rotation2d angle) {
+        return Commands.run(() -> setAngle(angle), getSubsystem())
                 .until(this::atAngle)
-                .withName("Arm.runTo(" + angle.in(Degrees) + " deg)");
+                .withName("Arm.runTo(" + angle.getDegrees() + " deg)");
     }
 
-    public void setAngleWithProfile(Angle angle) {
+    /** Sends a MotionMagic profiled position setpoint and updates the stored setpoint. */
+    public void setAngleWithProfile(Rotation2d angle) {
         this.setpoint = angle;
         motor.setPositionProfiled(angle);
     }
 
-    public void setAngle(Angle angle) {
+    /** Sends a direct position setpoint (no profile) and updates the stored setpoint. */
+    public void setAngle(Rotation2d angle) {
         this.setpoint = angle;
         motor.setPosition(angle);
     }
 
-    public Angle getAngle() {
+    /** Returns the current mechanism angle from the motor's feedback sensor. */
+    public Rotation2d getAngle() {
         return motor.getMechanismPosition();
     }
 
+    /** Returns {@code true} when the arm is within tolerance of the most recent setpoint. */
     public boolean atAngle() {
-        Angle tolerance = config.positionTolerance != null ? config.positionTolerance : DEFAULT_TOLERANCE;
+        Rotation2d tolerance = armConfig.positionTolerance != null
+                ? armConfig.positionTolerance : DEFAULT_TOLERANCE;
         return atAngle(setpoint, tolerance);
     }
 
-    public boolean atAngle(Angle target, Angle tolerance) {
-        return Math.abs(getAngle().in(Degrees) - target.in(Degrees)) <= tolerance.in(Degrees);
+    /** Returns {@code true} when the arm is within {@code tolerance} of {@code target}. */
+    public boolean atAngle(Rotation2d target, Rotation2d tolerance) {
+        return Math.abs(getAngle().getDegrees() - target.getDegrees()) <= tolerance.getDegrees();
     }
 
     // ── Characterization ──────────────────────────────────────────────────────
@@ -96,20 +122,9 @@ public class Arm extends SmartMechanism {
     /**
      * Ramps open-loop voltage at the arm's {@code horizontalZero} angle until it holds
      * position. The measured holding voltage is {@code kG}.
-     *
-     * <p>Run this command with the arm near its {@code horizontalZero} position.
-     * Read {@code KgEstimate} from AKit logs and plug it into your
-     * {@code ArmFeedforward(kS, kG, kV, kA)} constructor.
-     * Tune {@code kS} and {@code kV} via tuning mode or empirically.
-     *
-     * <p>WARNING: This command drives the mechanism with open-loop voltage.
-     * Ensure soft limits are enabled and the mechanism is clear of
-     * obstructions before running. The command will not stop automatically
-     * if the mechanism hits a hard stop -- use with caution.
-     * Recommended: run only in a controlled environment, not during competition.
      */
     public Command gravityCharacterization() {
-        Angle horizontalZero = Radians.of(motor.getHorizontalZeroRad());
+        Rotation2d horizontalZero = new Rotation2d(motor.getHorizontalZeroRad());
         return Commands.sequence(
             runWithProfile(horizontalZero).until(this::atAngle).withTimeout(3.0),
             voltageRampCommand(3.0, 0.01, 0.05, 10, kg -> {
@@ -128,7 +143,7 @@ public class Arm extends SmartMechanism {
         armSim.update(0.020);
 
         motor.simUpdate(
-                Radians.of(armSim.getAngleRads()),
+                new Rotation2d(armSim.getAngleRads()),
                 RadiansPerSecond.of(armSim.getVelocityRadPerSec()));
     }
 
@@ -136,11 +151,11 @@ public class Arm extends SmartMechanism {
     public void updateTelemetry() {
         processInputs();
 
-        Logger.recordOutput(logPrefix + "AngleDegrees", getAngle().in(Degrees));
-        Logger.recordOutput(logPrefix + "SetpointDegrees", setpoint.in(Degrees));
+        Logger.recordOutput(logPrefix + "AngleDegrees", getAngle().getDegrees());
+        Logger.recordOutput(logPrefix + "SetpointDegrees", setpoint.getDegrees());
         Logger.recordOutput(logPrefix + "AtAngle", atAngle());
 
-        Command active = config.subsystem.getCurrentCommand();
+        Command active = getSubsystem().getCurrentCommand();
         Logger.recordOutput(logPrefix + "ActiveCommand", active != null ? active.getName() : "None");
     }
 }

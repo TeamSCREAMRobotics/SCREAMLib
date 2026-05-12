@@ -25,17 +25,17 @@ import java.util.function.Consumer;
 
 import static edu.wpi.first.units.Units.*;
 
-/** Configuration for a roller mechanism. */
-public class RollerConfig {
+/** Configuration for a flywheel mechanism. */
+public class FlywheelConfig {
 
     /** The motor this config applies to. */
     public final TalonFXWrapper motor;
 
     // ── Mechanism / sim ───────────────────────────────────────────────────────
 
-    /** Roller wheel diameter — used to compute surface velocity. */
+    /** Flywheel wheel diameter — used to compute surface velocity. */
     public Distance diameter = null;
-    /** Roller mass — used for simulation. Defaults to 0.1 kg when null. */
+    /** Flywheel mass — required for simulation. */
     public Mass mass = null;
     /** Motor model for simulation. */
     public DCMotor motorModel = null;
@@ -43,7 +43,7 @@ public class RollerConfig {
     public AngularVelocity upperSoftLimit = null;
     /** Lower velocity soft limit; applied in {@code setVelocity()}. */
     public AngularVelocity lowerSoftLimit = null;
-    /** Tolerance for {@code atVelocity(target, tolerance)}. */
+    /** Tolerance for {@code atVelocity()}. Defaults to 50 RPM when null. */
     public AngularVelocity velocityTolerance = null;
     public String logPrefix = null;
 
@@ -72,36 +72,53 @@ public class RollerConfig {
     private Consumer<TalonFXConfiguration> extraConfigsConsumer = null;
     private Consumer<TalonFXConfiguration> extraSimConfigsConsumer = null;
 
-    public RollerConfig(TalonFXWrapper motor) {
+    public FlywheelConfig(TalonFXWrapper motor) {
         this.motor = motor;
     }
 
     // ── Mechanism configuration ───────────────────────────────────────────────
 
-    /** Sets the roller wheel diameter used to compute surface velocity. */
-    public RollerConfig withDiameter(Distance diameter) { this.diameter = diameter; return this; }
-    /** Sets the roller mass for simulation. Defaults to 0.1 kg when null. */
-    public RollerConfig withMass(Mass mass) { this.mass = mass; return this; }
+    /** Sets the wheel diameter used to compute surface velocity. */
+    public FlywheelConfig withDiameter(Distance diameter) {
+        this.diameter = diameter;
+        return this;
+    }
+
+    /** Sets the flywheel mass for simulation. Required for simulation. */
+    public FlywheelConfig withMass(Mass mass) {
+        this.mass = mass;
+        return this;
+    }
+
     /** Sets the motor model used for simulation. */
-    public RollerConfig withMotorModel(DCMotor model) { this.motorModel = model; return this; }
-
-    /** Sets the maximum velocity the roller will accept in {@code setVelocity()}. */
-    public RollerConfig withUpperSoftLimit(AngularVelocity limit) {
-        this.upperSoftLimit = limit; return this;
+    public FlywheelConfig withMotorModel(DCMotor model) {
+        this.motorModel = model;
+        return this;
     }
 
-    /** Sets the minimum velocity the roller will accept in {@code setVelocity()}. */
-    public RollerConfig withLowerSoftLimit(AngularVelocity limit) {
-        this.lowerSoftLimit = limit; return this;
+    /** Sets the maximum velocity the flywheel will accept in {@code setVelocity()}. */
+    public FlywheelConfig withUpperSoftLimit(AngularVelocity limit) {
+        this.upperSoftLimit = limit;
+        return this;
     }
 
-    /** Sets the tolerance used by {@code atVelocity(target, tolerance)} as a convenience default. */
-    public RollerConfig withVelocityTolerance(AngularVelocity tolerance) {
-        this.velocityTolerance = tolerance; return this;
+    /** Sets the minimum velocity the flywheel will accept in {@code setVelocity()}. */
+    public FlywheelConfig withLowerSoftLimit(AngularVelocity limit) {
+        this.lowerSoftLimit = limit;
+        return this;
+    }
+
+    /** Overrides the default 50 RPM tolerance used by {@code atVelocity()}. */
+    public FlywheelConfig withVelocityTolerance(AngularVelocity tolerance) {
+        this.velocityTolerance = tolerance;
+        return this;
     }
 
     /** Overrides the default AdvantageKit log prefix for this mechanism. */
-    public RollerConfig withLogPrefix(String prefix) { this.logPrefix = prefix; return this; }
+    public FlywheelConfig withLogPrefix(String prefix) {
+        this.logPrefix = prefix;
+        return this;
+    }
 
     // ── Motor configuration ───────────────────────────────────────────────────
 
@@ -109,15 +126,19 @@ public class RollerConfig {
      * Sets the overall gear reduction (sensor-to-mechanism ratio).
      * Use {@link SmartMechanism#gearing(double...)} to compute multi-stage reductions.
      */
-    public RollerConfig withGearing(double reduction) { this.gearing = reduction; return this; }
+    public FlywheelConfig withGearing(double reduction) {
+        this.gearing = reduction;
+        return this;
+    }
 
     /** Sets PID gains for velocity control (Slot 0). */
-    public RollerConfig withClosedLoopController(double kP, double kI, double kD) {
-        this.slot0 = new Slot0Configs().withKP(kP).withKI(kI).withKD(kD); return this;
+    public FlywheelConfig withClosedLoopController(double kP, double kI, double kD) {
+        this.slot0 = new Slot0Configs().withKP(kP).withKI(kI).withKD(kD);
+        return this;
     }
 
     /** Sets PID gains and MotionMagic constraints for profiled velocity control. */
-    public RollerConfig withClosedLoopController(double kP, double kI, double kD,
+    public FlywheelConfig withClosedLoopController(double kP, double kI, double kD,
             AngularVelocity maxVelocity, AngularAcceleration maxAcceleration) {
         this.slot0 = new Slot0Configs().withKP(kP).withKI(kI).withKD(kD);
         this.motionMagic = new MotionMagicConfigs()
@@ -131,7 +152,7 @@ public class RollerConfig {
      * Slot0 does not run in WPILib simulation — {@link TalonFXWrapper} must manually compute
      * the PID output and send voltage to the motor sim for these gains to have any effect.
      */
-    public RollerConfig withSimClosedLoopController(double kP, double kI, double kD,
+    public FlywheelConfig withSimClosedLoopController(double kP, double kI, double kD,
             AngularVelocity maxVelocity, AngularAcceleration maxAcceleration) {
         this.simSlot0 = new Slot0Configs().withKP(kP).withKI(kI).withKD(kD);
         this.simMotionMagic = new MotionMagicConfigs()
@@ -141,46 +162,70 @@ public class RollerConfig {
     }
 
     /** Sets the velocity feedforward (kS, kV) applied during velocity control on real hardware. */
-    public RollerConfig withFeedforward(SimpleMotorFeedforward ff) {
-        this.simpleFeedforward = ff; return this;
+    public FlywheelConfig withFeedforward(SimpleMotorFeedforward ff) {
+        this.simpleFeedforward = ff;
+        return this;
     }
 
     /** Sets the velocity feedforward applied in simulation instead of the real feedforward. */
-    public RollerConfig withSimFeedforward(SimpleMotorFeedforward ff) {
-        this.simSimpleFeedforward = ff; return this;
+    public FlywheelConfig withSimFeedforward(SimpleMotorFeedforward ff) {
+        this.simSimpleFeedforward = ff;
+        return this;
     }
 
     /** Sets the motor neutral mode (brake or coast). Default is coast. */
-    public RollerConfig withNeutralMode(NeutralModeValue mode) { this.neutralMode = mode; return this; }
+    public FlywheelConfig withNeutralMode(NeutralModeValue mode) {
+        this.neutralMode = mode;
+        return this;
+    }
+
     /** Sets the motor output direction. Default is CounterClockwise_Positive. */
-    public RollerConfig withInverted(InvertedValue invert) { this.inverted = invert; return this; }
+    public FlywheelConfig withInverted(InvertedValue invert) {
+        this.inverted = invert;
+        return this;
+    }
 
     /** Enables and sets the supply (input) current limit. */
-    public RollerConfig withSupplyCurrentLimit(Current limit) {
-        this.supplyCurrentLimitAmps = limit.in(Amps); this.enableSupplyCurrentLimit = true; return this;
+    public FlywheelConfig withSupplyCurrentLimit(Current limit) {
+        this.supplyCurrentLimitAmps = limit.in(Amps);
+        this.enableSupplyCurrentLimit = true;
+        return this;
     }
 
     /** Enables and sets the stator (output) current limit. Enabled by default at 80 A. */
-    public RollerConfig withStatorCurrentLimit(Current limit) {
-        this.statorCurrentLimitAmps = limit.in(Amps); this.enableStatorCurrentLimit = true; return this;
+    public FlywheelConfig withStatorCurrentLimit(Current limit) {
+        this.statorCurrentLimitAmps = limit.in(Amps);
+        this.enableStatorCurrentLimit = true;
+        return this;
     }
 
     /** Sets the power allocation priority used by the power manager. Default is MEDIUM. */
-    public RollerConfig withPowerPriority(PowerPriority priority) {
-        this.powerPriority = priority; return this;
+    public FlywheelConfig withPowerPriority(PowerPriority priority) {
+        this.powerPriority = priority;
+        return this;
     }
 
     /**
      * Applied as the final step before passing the configuration to the motor.
      * Use for any TalonFX settings not covered by the fluent API.
      */
-    public RollerConfig withExtraConfigs(Consumer<TalonFXConfiguration> consumer) {
-        this.extraConfigsConsumer = consumer; return this;
+    public FlywheelConfig withExtraConfigs(Consumer<TalonFXConfiguration> consumer) {
+        this.extraConfigsConsumer = consumer;
+        return this;
     }
 
     /** Same as {@link #withExtraConfigs} but applied to the simulation configuration. */
-    public RollerConfig withExtraSimConfigs(Consumer<TalonFXConfiguration> consumer) {
-        this.extraSimConfigsConsumer = consumer; return this;
+    public FlywheelConfig withExtraSimConfigs(Consumer<TalonFXConfiguration> consumer) {
+        this.extraSimConfigsConsumer = consumer;
+        return this;
+    }
+
+    /** MOI for a solid disc: 0.5 * mass * radius². */
+    public double getMOI() {
+        if (diameter == null || mass == null)
+            return 0.001;
+        double r = diameter.in(Meters) / 2.0;
+        return 0.5 * mass.in(Kilograms) * r * r;
     }
 
     // ── Internal ──────────────────────────────────────────────────────────────
@@ -189,9 +234,11 @@ public class RollerConfig {
         TalonFXConfiguration real = buildTalonFXConfig();
         TalonFXConfiguration sim = (simSlot0 != null) ? buildSimTalonFXConfig(real) : null;
 
-        if (extraConfigsConsumer != null) extraConfigsConsumer.accept(real);
+        if (extraConfigsConsumer != null)
+            extraConfigsConsumer.accept(real);
         if (extraSimConfigsConsumer != null) {
-            if (sim == null) sim = cloneConfig(real);
+            if (sim == null)
+                sim = cloneConfig(real);
             extraSimConfigsConsumer.accept(sim);
         }
 
@@ -202,8 +249,9 @@ public class RollerConfig {
     }
 
     public String resolveLogPrefix() {
-        if (logPrefix != null) return logPrefix;
-        return "Mechanisms/Roller/" + motor.getRuntimeInfo().subsystem().getClass().getSimpleName() + "/";
+        if (logPrefix != null)
+            return logPrefix;
+        return "Mechanisms/FlyWheel/" + motor.getRuntimeInfo().subsystem().getClass().getSimpleName() + "/";
     }
 
     private TalonFXConfiguration buildTalonFXConfig() {
@@ -229,15 +277,20 @@ public class RollerConfig {
     private TalonFXConfiguration buildSimTalonFXConfig(TalonFXConfiguration base) {
         TalonFXConfiguration sim = cloneConfig(base);
         sim.Slot0 = simSlot0;
-        if (simMotionMagic != null) sim.MotionMagic = simMotionMagic;
+        if (simMotionMagic != null)
+            sim.MotionMagic = simMotionMagic;
         return sim;
     }
 
     private static TalonFXConfiguration cloneConfig(TalonFXConfiguration src) {
         TalonFXConfiguration dst = new TalonFXConfiguration();
-        dst.MotorOutput = src.MotorOutput; dst.CurrentLimits = src.CurrentLimits;
-        dst.OpenLoopRamps = src.OpenLoopRamps; dst.ClosedLoopRamps = src.ClosedLoopRamps;
-        dst.Feedback = src.Feedback; dst.Slot0 = src.Slot0; dst.MotionMagic = src.MotionMagic;
+        dst.MotorOutput = src.MotorOutput;
+        dst.CurrentLimits = src.CurrentLimits;
+        dst.OpenLoopRamps = src.OpenLoopRamps;
+        dst.ClosedLoopRamps = src.ClosedLoopRamps;
+        dst.Feedback = src.Feedback;
+        dst.Slot0 = src.Slot0;
+        dst.MotionMagic = src.MotionMagic;
         return dst;
     }
 }

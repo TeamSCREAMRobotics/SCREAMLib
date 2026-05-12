@@ -23,22 +23,22 @@ import java.util.*;
  *   SuperstructureNode STOW = new SuperstructureNode("STOW",
  *       SuperstructurePosition.builder()
  *           .set(elevatorAdapter, Meters.of(0.0))
- *           .set(armAdapter,      Degrees.of(-10.0))
- *           .set(wristAdapter,    Degrees.of(0.0))
+ *           .set(armAdapter,      Rotation2d.fromDegrees(-10.0))
+ *           .set(wristAdapter,    Rotation2d.fromDegrees(0.0))
  *           .build());
  *
  *   SuperstructureNode SCORE_L3 = new SuperstructureNode("SCORE_L3",
  *       SuperstructurePosition.builder()
  *           .set(elevatorAdapter, Meters.of(0.8))
- *           .set(armAdapter,      Degrees.of(85.0))
- *           .set(wristAdapter,    Degrees.of(45.0))
+ *           .set(armAdapter,      Rotation2d.fromDegrees(85.0))
+ *           .set(wristAdapter,    Rotation2d.fromDegrees(45.0))
  *           .build());
  *
  *   SuperstructureNode SAFE_PASS = new SuperstructureNode("SAFE_PASS",
  *       SuperstructurePosition.builder()
  *           .set(elevatorAdapter, Meters.of(0.3))
- *           .set(armAdapter,      Degrees.of(0.0))
- *           .set(wristAdapter,    Degrees.of(0.0))
+ *           .set(armAdapter,      Rotation2d.fromDegrees(0.0))
+ *           .set(wristAdapter,    Rotation2d.fromDegrees(0.0))
  *           .build());
  *
  *   // 3. Build graph — same adapter objects used in registerMechanism and .set()
