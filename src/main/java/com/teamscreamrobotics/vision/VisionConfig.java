@@ -10,16 +10,21 @@ import java.util.function.Supplier;
  * Configuration for a multi-camera {@link LimelightVision} system.
  *
  * <h2>Standard deviation formula</h2>
+ * 
  * <pre>
  *   xyStdDev    = xyStdDevCoefficient    * avgTagDistance² / tagCount
  *   thetaStdDev = thetaStdDevCoefficient * avgTagDistance² / tagCount
  * </pre>
  *
- * <p><b>xyStdDevCoefficient</b>: lower = trust vision more at all distances.
+ * <p>
+ * <b>xyStdDevCoefficient</b>: lower = trust vision more at all distances.
  * Start around 0.005 for a well-mounted camera; increase if pose jumps.
  *
- * <p><b>thetaStdDevCoefficient</b>: almost always leave at the default (9999999) to defer
- * heading entirely to the gyro. Only lower this if you are NOT using MegaTag2 and have
+ * <p>
+ * <b>thetaStdDevCoefficient</b>: almost always leave at the default (9999999)
+ * to defer
+ * heading entirely to the gyro. Only lower this if you are NOT using MegaTag2
+ * and have
  * confirmed your camera heading is accurate.
  */
 public class VisionConfig {
@@ -36,18 +41,27 @@ public class VisionConfig {
     public double maxTagDistance = 4.0;
     public double maxAngularVelocityDegPerSec = 540.0;
     public double maxLinearVelocityMetersPerSec = 3.5;
-    /** If true, single-tag ambiguity rejection is bypassed (e.g. via dashboard toggle). */
+    /**
+     * If true, single-tag ambiguity rejection is bypassed (e.g. via dashboard
+     * toggle).
+     */
     public boolean useDisableAmbiguityRejection = false;
 
     // ── Simulation ────────────────────────────────────────────────────────────
     public AprilTagFieldLayout fieldLayout = null;
-    /** Horizontal FOV in degrees — used for sim visibility checks and auto-crop coordinate conversion. */
+    /**
+     * Horizontal FOV in degrees — used for sim visibility checks and auto-crop
+     * coordinate conversion.
+     */
     public double simulatedFOVDegrees = 63.3;
-    /** Vertical FOV in degrees — used for auto-crop coordinate conversion. Default matches LL3/LL4. */
+    /**
+     * Vertical FOV in degrees — used for auto-crop coordinate conversion. Default
+     * matches LL3/LL4.
+     */
     public double verticalFOVDegrees = 49.7;
     public Supplier<Pose2d> groundTruthPoseSupplier = null;
 
-    public VisionConfig(Limelight[] limelights) {
+    public VisionConfig(Limelight... limelights) {
         this.limelights = limelights;
     }
 
